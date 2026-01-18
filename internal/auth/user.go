@@ -1,0 +1,56 @@
+package auth
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+)
+
+// User represents a registered user in the system.
+type User struct {
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	Password  string    `json:"-"` // Never return password
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Repository handles database interactions for users.
+type Repository struct {
+	db *sql.DB
+}
+
+// NewRepository creates a new instance of Repository.
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
+}
+
+// CreateUser inserts a new user into the database and returns the created user.
+func (r *Repository) CreateUser(ctx context.Context, email, passwordHash string) (*User, error) {
+	var user User
+	err := r.db.QueryRowContext(ctx,
+		"INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at",
+		email, passwordHash).Scan(&user.ID, &user.Email, &user.CreatedAt)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert user: %w", err)
+	}
+	return &user, nil
+}
+
+// GetUserByEmail retrieves a user by their email address.
+func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	var user User
+	err := r.db.QueryRowContext(ctx,
+		"SELECT id, email, password_hash, created_at FROM users WHERE email = $1",
+		email).Scan(&user.ID, &user.Email, &user.Password, &user.CreatedAt)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // User not found
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	return &user, nil
+}
