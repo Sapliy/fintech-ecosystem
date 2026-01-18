@@ -91,11 +91,10 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// Configuration (In a real app, load from env)
-	// Note: Auth service is on :8081
 	gateway := NewGatewayHandler(
-		"http://127.0.0.1:8081",
-		"http://127.0.0.1:8082",
-		"http://127.0.0.1:8083",
+		"http://127.0.0.1:8081", // Auth
+		"http://127.0.0.1:8082", // Payment
+		"http://127.0.0.1:8083", // Ledger
 	)
 
 	server := &http.Server{
