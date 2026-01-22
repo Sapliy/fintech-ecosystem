@@ -11,6 +11,7 @@ import (
 	"github.com/marwan562/fintech-ecosystem/pkg/jsonutil"
 	pb "github.com/marwan562/fintech-ecosystem/proto/auth"
 
+	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
 	"google.golang.org/grpc"
 )
 
@@ -45,6 +46,9 @@ func main() {
 
 	repo := auth.NewRepository(db)
 	handler := &AuthHandler{repo: repo}
+
+	// Start Metrics Server
+	monitoring.StartMetricsServer(":8085")
 
 	mux := http.NewServeMux()
 

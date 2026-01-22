@@ -30,37 +30,57 @@ func StartKafkaConsumer(brokers []string, repo *ledger.Repository) {
 			return err
 		}
 
-		if event.Type != "payment.succeeded" {
-			return nil // Only process successful payments
-		}
+		log.Printf("Ledger: Received Kafka event type %s for ID %s", event.Type, event.Data.ID)
 
-		log.Printf("Ledger: Processing payment event for ID %s", event.Data.ID)
+		var txReq ledger.TransactionRequest
 
-		// Create transactional entries
-		txReq := ledger.TransactionRequest{
-			ReferenceID: event.Data.ID,
-			Description: "Kafka Event: Professional Payment Success",
-			Entries: []ledger.EntryRequest{
-				{
-					AccountID: "user_" + event.Data.UserID,
-					Amount:    event.Data.Amount,
-					Direction: "credit",
+		switch event.Type {
+		case "payment.succeeded":
+			txReq = ledger.TransactionRequest{
+				ReferenceID: event.Data.ID,
+				Description: "Kafka Event: Payment Success",
+				Entries: []ledger.EntryRequest{
+					{
+						AccountID: "user_" + event.Data.UserID,
+						Amount:    event.Data.Amount,
+						Direction: "credit",
+					},
+					{
+						AccountID: "system_balancing",
+						Amount:    -event.Data.Amount,
+						Direction: "debit",
+					},
 				},
-				{
-					AccountID: "system_balancing",
-					Amount:    -event.Data.Amount,
-					Direction: "debit",
+			}
+		case "payment.refunded":
+			// Reversing entries
+			txReq = ledger.TransactionRequest{
+				ReferenceID: "refund_" + event.Data.ID,
+				Description: "Kafka Event: Payment Refunded",
+				Entries: []ledger.EntryRequest{
+					{
+						AccountID: "user_" + event.Data.UserID,
+						Amount:    -event.Data.Amount, // Negative credit is a debit
+						Direction: "debit",            // Explicitly set direction
+					},
+					{
+						AccountID: "system_balancing",
+						Amount:    event.Data.Amount,
+						Direction: "credit",
+					},
 				},
-			},
+			}
+		default:
+			return nil // Ignore other events
 		}
 
 		ctx := context.Background()
 		if err := repo.RecordTransaction(ctx, txReq); err != nil {
-			log.Printf("Failed to record transaction from Kafka event: %v", err)
+			log.Printf("Failed to record transaction for event %s (ID: %s): %v", event.Type, event.Data.ID, err)
 			return err
 		}
 
-		log.Printf("Ledger: Successfully recorded transaction for payment %s", event.Data.ID)
+		log.Printf("Ledger: Successfully recorded transaction for event %s (ID: %s)", event.Type, event.Data.ID)
 		return nil
 	})
 }

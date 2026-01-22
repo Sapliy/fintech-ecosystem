@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
 	"log"
-	"github.com/marwan562/fintech-ecosystem/internal/ledger"
-	"github.com/marwan562/fintech-ecosystem/pkg/database"
-	"github.com/marwan562/fintech-ecosystem/pkg/jsonutil"
-	pb "github.com/marwan562/fintech-ecosystem/proto/ledger"
 	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/marwan562/fintech-ecosystem/internal/ledger"
+	"github.com/marwan562/fintech-ecosystem/pkg/database"
+	"github.com/marwan562/fintech-ecosystem/pkg/jsonutil"
+	pb "github.com/marwan562/fintech-ecosystem/proto/ledger"
+
+	"github.com/marwan562/fintech-ecosystem/pkg/messaging"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 )
 
@@ -52,6 +57,11 @@ func main() {
 	brokers := strings.Split(kafkaBrokers, ",")
 	go StartKafkaConsumer(brokers, repo)
 
+	// Start Outbox Publisher for Reliable Event Delivery
+	ledgerProducer := messaging.NewKafkaProducer(brokers, "ledger-events")
+	publisher := ledger.NewOutboxPublisher(repo, ledgerProducer, 2*time.Second)
+	go publisher.Start(context.Background())
+
 	handler := &LedgerHandler{repo: repo}
 
 	mux := http.NewServeMux()
@@ -62,6 +72,8 @@ func main() {
 			"service": "ledger",
 		})
 	})
+
+	mux.Handle("/metrics", promhttp.Handler())
 
 	mux.HandleFunc("/accounts", handler.CreateAccount)
 

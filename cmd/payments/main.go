@@ -11,6 +11,7 @@ import (
 	"github.com/marwan562/fintech-ecosystem/pkg/database"
 	"github.com/marwan562/fintech-ecosystem/pkg/jsonutil"
 	"github.com/marwan562/fintech-ecosystem/pkg/messaging"
+	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
 	pb "github.com/marwan562/fintech-ecosystem/proto/ledger"
 
 	"context"
@@ -99,6 +100,9 @@ func main() {
 		rabbitClient.DeclareQueue("notifications")
 	}
 
+	// Start Metrics Server
+	monitoring.StartMetricsServer(":8086") // Distinct from HTTP server on 8082 if preferred, but on separate port is standard
+
 	handler := &PaymentHandler{
 		repo:          repo,
 		bankClient:    bankClient,
@@ -131,12 +135,16 @@ func main() {
 	// For /confirm, we need to match the path prefix because of the ID parameter
 	// /payment_intents/{id}/confirm
 	mux.HandleFunc("/payment_intents/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && len(r.URL.Path) > len("/payment_intents/") && r.URL.Path[len(r.URL.Path)-8:] == "/confirm" {
+		path := r.URL.Path
+		if r.Method == http.MethodPost && strings.HasSuffix(path, "/confirm") {
 			handler.IdempotencyMiddleware(handler.ConfirmPaymentIntent)(w, r)
 			return
 		}
+		if r.Method == http.MethodPost && strings.HasSuffix(path, "/refund") {
+			handler.IdempotencyMiddleware(handler.RefundPaymentIntent)(w, r)
+			return
+		}
 		// Fallback or other sub-resources could go here.
-		// For now, if it's not confirm, return 404 or Method Not Allowed
 		jsonutil.WriteErrorJSON(w, "Not Found")
 	})
 

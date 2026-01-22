@@ -6,6 +6,16 @@ import (
 	"os"
 
 	"github.com/marwan562/fintech-ecosystem/pkg/messaging"
+	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	NotificationsSent = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "notifications_sent_total",
+		Help: "Total number of notifications sent.",
+	}, []string{"type", "status"})
 )
 
 type NotificationTask struct {
@@ -32,6 +42,9 @@ func main() {
 		log.Fatalf("Failed to declare queue: %v", err)
 	}
 
+	// Start Metrics Server
+	monitoring.StartMetricsServer(":8084")
+
 	log.Println("Notifications Service started. Waiting for tasks...")
 
 	client.Consume(queue.Name, func(body []byte) error {
@@ -45,6 +58,7 @@ func main() {
 
 		// In a real system, call SendGrid, Twilio, etc.
 		log.Printf("Successfully sent %s to %s", task.Type, task.To)
+		NotificationsSent.WithLabelValues(task.Type, "success").Inc()
 
 		return nil
 	})

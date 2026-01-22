@@ -17,9 +17,19 @@ import (
 	pb "github.com/marwan562/fintech-ecosystem/proto/auth"
 
 	"github.com/gorilla/websocket"
+	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+)
+
+var (
+	GatewayRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "gateway_requests_total",
+		Help: "Total number of requests handled by the gateway.",
+	}, []string{"method", "path", "status"})
 )
 
 // GatewayHandler holds the configuration for upstream service URLs and Redis.
@@ -253,6 +263,9 @@ func main() {
 	}
 	defer conn.Close()
 	authClient := pb.NewAuthServiceClient(conn)
+
+	// Start Metrics Server
+	monitoring.StartMetricsServer(":8087")
 
 	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, rdb, authClient)
 

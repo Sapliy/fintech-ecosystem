@@ -172,10 +172,70 @@ services:
     container_name: microservices_notifications
     environment:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
+    ports:
+      - "8084:8084"
     depends_on:
       - rabbitmq
     networks:
       - microservices-net
+
+  fraud:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: fraud
+    container_name: microservices_fraud
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
+    ports:
+      - "8089:8081" # Map internal 8081 to 8089 to avoid clash if on host
+    depends_on:
+      - kafka
+      - rabbitmq
+    networks:
+      - microservices-net
+
+  reconciler:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: reconciler
+    container_name: microservices_reconciler
+    environment:
+      - PAYMENTS_DB_DSN=postgres://user:password@payments_db:5432/payments?sslmode=disable
+      - LEDGER_DB_DSN=postgres://user:password@ledger_db:5432/ledger?sslmode=disable
+    ports:
+      - "8090:8081" # Map internal 8081 to 8090
+    depends_on:
+      - payments_db
+      - ledger_db
+    networks:
+      - microservices-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: microservices_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - microservices-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: microservices_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - microservices-net
+    depends_on:
+      - prometheus
 
 networks:
   microservices-net:

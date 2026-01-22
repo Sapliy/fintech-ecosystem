@@ -22,11 +22,33 @@ CREATE TABLE IF NOT EXISTS entries (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS outbox (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type VARCHAR(255) NOT NULL,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    processed_at TIMESTAMP WITH TIME ZONE -- NULL means pending
+);
+
 -- TRIGGERS FOR IMMUTABILITY
 CREATE OR REPLACE FUNCTION prevent_mutation()
 RETURNS TRIGGER AS $$
 BEGIN
     RAISE EXCEPTION 'Financial records are immutable. Mutation of %% is forbidden.', TG_TABLE_NAME;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION prevent_outbox_mutation()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Allow updating processed_at from NULL to a timestamp
+    IF (OLD.processed_at IS NULL AND NEW.processed_at IS NOT NULL) THEN
+        -- Ensure other columns haven't changed
+        IF (OLD.id = NEW.id AND OLD.event_type = NEW.event_type AND OLD.payload = NEW.payload AND OLD.created_at = NEW.created_at) THEN
+            RETURN NEW;
+        END IF;
+    END IF;
+    RAISE EXCEPTION 'Immutable outbox violation. Only processed_at can be updated exactly once.';
 END;
 $$ LANGUAGE plpgsql;
 
@@ -37,6 +59,10 @@ FOR EACH ROW EXECUTE FUNCTION prevent_mutation();
 CREATE TRIGGER trg_immutable_entries
 BEFORE UPDATE OR DELETE ON entries
 FOR EACH ROW EXECUTE FUNCTION prevent_mutation();
+
+CREATE TRIGGER trg_immutable_outbox
+BEFORE UPDATE OR DELETE ON outbox
+FOR EACH ROW EXECUTE FUNCTION prevent_outbox_mutation();
 
 CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_entries_transaction_id ON entries(transaction_id);

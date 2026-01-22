@@ -14,6 +14,7 @@ import (
 
 	"github.com/marwan562/fintech-ecosystem/pkg/messaging"
 	pb "github.com/marwan562/fintech-ecosystem/proto/ledger"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -101,6 +102,9 @@ func extractUserIDFromToken(r *http.Request) (string, error) {
 }
 
 func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(payment.PaymentLatency.WithLabelValues("create"))
+	defer timer.ObserveDuration()
+
 	if r.Method != http.MethodPost {
 		jsonutil.WriteErrorJSON(w, "Method not allowed")
 		return
@@ -141,14 +145,19 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := h.repo.CreatePaymentIntent(r.Context(), intent); err != nil {
+		payment.PaymentRequests.WithLabelValues("create", "error").Inc()
 		jsonutil.WriteErrorJSON(w, "Failed to create payment intent")
 		return
 	}
 
+	payment.PaymentRequests.WithLabelValues("create", "success").Inc()
 	jsonutil.WriteJSON(w, http.StatusCreated, intent)
 }
 
 func (h *PaymentHandler) ConfirmPaymentIntent(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(payment.PaymentLatency.WithLabelValues("confirm"))
+	defer timer.ObserveDuration()
+
 	if r.Method != http.MethodPost {
 		jsonutil.WriteErrorJSON(w, "Method not allowed")
 		return
@@ -200,10 +209,12 @@ func (h *PaymentHandler) ConfirmPaymentIntent(w http.ResponseWriter, r *http.Req
 
 	// Update Status
 	if err := h.repo.UpdateStatus(r.Context(), id, "succeeded"); err != nil {
+		payment.PaymentRequests.WithLabelValues("confirm", "error").Inc()
 		// Critical: In real world, we need to handle state consistency here
 		jsonutil.WriteErrorJSON(w, "Failed to update payment status")
 		return
 	}
+	payment.PaymentRequests.WithLabelValues("confirm", "success").Inc()
 
 	// Publish Webhook Event
 	event := map[string]interface{}{
@@ -248,5 +259,54 @@ func (h *PaymentHandler) ConfirmPaymentIntent(w http.ResponseWriter, r *http.Req
 		log.Printf("Failed to queue notification: %v", err)
 	}
 
+	jsonutil.WriteJSON(w, http.StatusOK, intent)
+}
+
+func (h *PaymentHandler) RefundPaymentIntent(w http.ResponseWriter, r *http.Request) {
+	timer := prometheus.NewTimer(payment.PaymentLatency.WithLabelValues("refund"))
+	defer timer.ObserveDuration()
+
+	if r.Method != http.MethodPost {
+		jsonutil.WriteErrorJSON(w, "Method not allowed")
+		return
+	}
+
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 3 {
+		jsonutil.WriteErrorJSON(w, "Invalid path")
+		return
+	}
+	id := pathParts[2]
+
+	intent, err := h.repo.GetPaymentIntent(r.Context(), id)
+	if err != nil || intent == nil {
+		jsonutil.WriteErrorJSON(w, "Payment intent not found")
+		return
+	}
+
+	if intent.Status != "succeeded" {
+		jsonutil.WriteErrorJSON(w, "Only succeeded payments can be refunded")
+		return
+	}
+
+	// Update Status to refunded
+	if err := h.repo.UpdateStatus(r.Context(), id, "refunded"); err != nil {
+		payment.PaymentRequests.WithLabelValues("refund", "error").Inc()
+		jsonutil.WriteErrorJSON(w, "Failed to update refund status")
+		return
+	}
+
+	// Emit to Kafka
+	event := map[string]interface{}{
+		"type": "payment.refunded",
+		"data": intent,
+	}
+	eventBody, _ := json.Marshal(event)
+	if err := h.kafkaProducer.Publish(r.Context(), intent.ID, eventBody); err != nil {
+		log.Printf("Failed to publish refund event: %v", err)
+	}
+
+	payment.PaymentRequests.WithLabelValues("refund", "success").Inc()
+	intent.Status = "refunded"
 	jsonutil.WriteJSON(w, http.StatusOK, intent)
 }

@@ -3,9 +3,12 @@ package ledger
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type AccountType string
@@ -106,7 +109,17 @@ type EntryRequest struct {
 
 // RecordTransaction creates a transaction and its entries atomically.
 // It is idempotent based on the ReferenceID.
-func (r *Repository) RecordTransaction(ctx context.Context, req TransactionRequest) error {
+func (r *Repository) RecordTransaction(ctx context.Context, req TransactionRequest) (err error) {
+	timer := prometheus.NewTimer(TransactionLatency)
+	defer func() {
+		timer.ObserveDuration()
+		if err != nil {
+			TransactionsRecorded.WithLabelValues("error").Inc()
+		} else {
+			TransactionsRecorded.WithLabelValues("success").Inc()
+		}
+	}()
+
 	// 1. Validate Balance (Sum of amounts must be 0)
 	var sum int64
 	for _, e := range req.Entries {
@@ -151,5 +164,53 @@ func (r *Repository) RecordTransaction(ctx context.Context, req TransactionReque
 		}
 	}
 
+	// 5. Insert Outbox Event
+	eventData, _ := json.Marshal(map[string]interface{}{
+		"id":           transactionID,
+		"reference_id": req.ReferenceID,
+		"description":  req.Description,
+		"entries":      req.Entries,
+	})
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO outbox (event_type, payload) VALUES ($1, $2)`,
+		"transaction.recorded", eventData)
+	if err != nil {
+		return fmt.Errorf("failed to create outbox event: %w", err)
+	}
+
 	return tx.Commit()
+}
+
+type OutboxEvent struct {
+	ID        string
+	Type      string
+	Payload   []byte
+	CreatedAt time.Time
+}
+
+func (r *Repository) GetUnprocessedEvents(ctx context.Context, limit int) ([]OutboxEvent, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, event_type, payload, created_at FROM outbox WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT $1`,
+		limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []OutboxEvent
+	for rows.Next() {
+		var e OutboxEvent
+		if err := rows.Scan(&e.ID, &e.Type, &e.Payload, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		events = append(events, e)
+	}
+	return events, nil
+}
+
+func (r *Repository) MarkEventProcessed(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE outbox SET processed_at = NOW() WHERE id = $1`,
+		id)
+	return err
 }
