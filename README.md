@@ -1,77 +1,156 @@
-# Microservices Fintech Ecosystem
+# 💳 Microservices Fintech Ecosystem
 
 A robust, developer-first microservices platform for financial operations, featuring a secure API Gateway, distributed services, and a Stripe-inspired CLI for seamless local development.
 
 ## 🚀 Architecture
 
-The system is built on a distributed microservices architecture, leveraging **Docker**, **Go**, and **Redis** for high performance and scalability.
+The system is built on a distributed microservices architecture, leveraging **Go**, **Redis**, **PostgreSQL**, and **Docker**.
 
-- **API Gateway**: The entry point. Handles rate limiting (Redis-backed), API key verification, and WebSocket-based webhook streaming.
-- **Auth Service**: Manages user registration, JWT-based sessions, and secure API key management (bcrypt-hashed).
-- **Payments Service**: Orchestrates payment logic with built-in idempotency and publishes real-time events via Redis Pub/Sub.
-- **Ledger Service**: A double-entry accounting system preserving financial integrity with atomic transaction recording.
-- **Micro CLI**: A professional developer tool for authentication and local webhook relay.
+```mermaid
+graph TD
+    User((User/Dev)) -->|HTTP/WS| Gateway[API Gateway :8080]
+    Gateway -->|Auth Check| AuthService[Auth Service :8081]
+    Gateway -->|Proxy| PaymentsService[Payments Service :8082]
+    Gateway -->|Proxy| LedgerService[Ledger Service :8083]
+    
+    PaymentsService -->|Events| Redis[(Redis Pub/Sub)]
+    Redis -->|Stream| Gateway
+    Gateway -->|WebSocket| CLI[Micro CLI]
+    
+    AuthService --- AuthDB[(Postgres: Auth)]
+    PaymentsService --- PaymentsDB[(Postgres: Payments)]
+    LedgerService --- LedgerDB[(Postgres: Ledger)]
+```
+
+- **API Gateway**: Central hub for rate limiting (100 req/min), API key validation, and WebSocket-based webhook streaming.
+- **Auth Service**: Manages user identity, JWT sessions, and hashed API keys.
+- **Payments Service**: Handles payment orchestration with idempotency support.
+- **Ledger Service**: Immutable double-entry accounting system for financial integrity.
+- **Micro CLI**: Professional tool for local webhook relay and session management.
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Go 1.24+
-- **Database**: PostgreSQL (Service-specific isolation)
-- **Caching/PubSub**: Redis
-- **Containerization**: Docker & Docker Compose
-- **CLI**: Cobra & Viper
+- **Languge**: Go 1.24+
+- **Infrastructure**: Docker, Docker Compose
+- **Databases**: PostgreSQL (Isolated per service)
+- **Messaging/Cache**: Redis
+- **CLI Framework**: Cobra & Viper
+
+---
 
 ## 📦 Getting Started
-
-### Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Go 1.24+](https://go.dev/dl/)
 
 ### 1. Launch the Ecosystem
 
 ```bash
 docker-compose up --build -d
 ```
-All services will initialize, migrate their schemas, and become active on their respective ports. The Gateway is exposed at `:8080`.
+The Gateway is exposed at `http://localhost:8080`.
 
-### 2. Build the CLI
+### 2. Install Micro CLI
 
 ```bash
 go build -o micro ./cmd/cli
 ```
 
-### 3. Developer Authentication
-
-Sign up and log in directly from your terminal:
+### 3. Developer Onboarding
 
 ```bash
-# Register via Gateway
+# Register a new developer account
 curl -X POST http://localhost:8080/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email": "dev@example.com", "password": "securepassword"}'
 
-# Authenticate CLI
+# Login via CLI
 ./micro login
 ```
-The CLI automatically handles session persistence and generates a development API key stored in `~/.micro.yaml`.
 
-## ⚡ Real-time Webhook Testing
+---
 
-Test your local webhooks without complex tunnel setups:
+## 📖 API Reference
 
-1. **Start Listening**:
+### 🔐 Auth Service
+Requires session JWT for key management.
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/auth/register` | `POST` | Create a new developer account |
+| `/auth/login` | `POST` | Authenticate and receive JWT |
+| `/auth/api_keys` | `POST` | Generate a new API key (`test` or `live`) |
+
+**Example API Key Generation:**
+```bash
+curl -X POST http://localhost:8080/auth/api_keys \
+  -H "Authorization: Bearer <jwt_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"environment": "test"}'
+```
+
+### 💸 Payments Service
+Requires `Authorization: Bearer sk_<key>` header.
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/payments/payment_intents` | `POST` | Create a new payment intent |
+| `/payments/payment_intents/{id}/confirm` | `POST` | Confirm a payment intent |
+
+**Create Payment (with Idempotency):**
+```bash
+curl -X POST http://localhost:8080/payments/payment_intents \
+  -H "Authorization: Bearer sk_your_key" \
+  -H "Idempotency-Key: unique_req_123" \
+  -d '{"amount": 5000, "currency": "usd"}'
+```
+
+### 📒 Ledger Service
+Requires `Authorization: Bearer sk_<key>` header.
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/ledger/accounts` | `POST` | Create a financial account |
+| `/ledger/accounts/{id}` | `GET` | View account balance and type |
+| `/ledger/transactions` | `POST` | Record a double-entry transaction |
+
+**Record Balanced Transaction:**
+```json
+{
+  "reference_id": "pay_987",
+  "description": "Payment for Service",
+  "entries": [
+    {"account_id": "acc_revenue", "amount": 100, "direction": "credit"},
+    {"account_id": "acc_assets", "amount": -100, "direction": "debit"}
+  ]
+}
+```
+
+---
+
+## ⚡ Real-time Webhooks
+
+Test local integrations without tunnels:
+
+1. **Listen for events**:
    ```bash
    ./micro listen --forward-to http://localhost:4242/webhook
    ```
-2. **Trigger an Event**: Create and confirm a payment.
-3. **Relay**: The system streams the `payment.succeeded` event from the cloud (Docker) to your terminal via WebSockets, then forwards it to your local server.
+2. **Trigger**: When a payment is confirmed via `/payments/payment_intents/{id}/confirm`, the Gateway pushes the event through the WebSocket connection to your CLI.
 
-## 🔒 Security & Operations
+---
 
-- **API Key Security**: Gateway enforces hashing and service-level validation.
-- **Rate Limiting**: Fixed-window rate limiting (100 req/min) per API key.
-- **Idempotency**: Payments service ensures safe retries via `Idempotency-Key` headers.
-- **Double-Entry Ledger**: Immutable financial logs ensuring debits and credits always balance.
+## 💻 Developer Guide
+
+### Makefile Commands
+- `make build`: Build all services locally.
+- `make test`: Run the test suite.
+- `make clean`: Remove binaries and temporary files.
+
+### Database Access
+Each service has its own database. Connect via:
+- `psql postgres://user:password@localhost:5433/microservices` (Auth)
+- `psql postgres://user:password@localhost:5434/payments` (Payments)
+- `psql postgres://user:password@localhost:5435/ledger` (Ledger)
+
+---
 
 ## 📜 License
 MIT
