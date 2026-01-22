@@ -19,7 +19,6 @@ func main() {
 	if err != nil {
 		log.Printf("Warning: Database connection failed: %v", err)
 	} else {
-		defer db.Close()
 		log.Println("Database connection established")
 
 		// Run migration explicitly
@@ -33,6 +32,9 @@ func main() {
 				log.Println("Schema migration executed successfully")
 			}
 		}
+	}
+	if db != nil {
+		defer db.Close()
 	}
 
 	repo := ledger.NewRepository(db)

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -15,10 +18,13 @@ var loginCmd = &cobra.Command{
 	Short: "Log in to the microservices platform",
 	Run: func(cmd *cobra.Command, args []string) {
 		var email, password string
+		scanner := bufio.NewScanner(os.Stdin)
 		fmt.Print("Email: ")
-		fmt.Scanln(&email)
+		scanner.Scan()
+		email = strings.TrimSpace(scanner.Text())
 		fmt.Print("Password: ")
-		fmt.Scanln(&password)
+		scanner.Scan()
+		password = strings.TrimSpace(scanner.Text())
 
 		// Call Auth Service via Gateway
 		loginReq := map[string]string{
