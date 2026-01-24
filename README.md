@@ -38,12 +38,37 @@ graph TD
 - **Notifications Service**: Async worker that handles email and SMS delivery via **RabbitMQ** tasks.
 - **Micro CLI**: Professional tool for local developer productivity and webhook testing.
 
+---
+
+## 🛡️ Robust Messaging Infrastructure
+
+We have implemented a **Production-Ready RabbitMQ Client** (`messaging.RabbitMQClient`) that ensures reliability and security across all microservices.
+
+### Key Features
+- **Automatic Connection Recovery**: Self-healing client that automatically reconnects with exponential backoff strategies when the broker becomes unavailable.
+- **Circuit Breaker Pattern**: Protects the system from cascading failures during outages by temporarily halting publish operations.
+- **TLS/SSL Support**: Secure communication with certificate validation support.
+- **Graceful Shutdown**: Ensures consumers finish processing current messages before shutting down.
+- **Observability**: Built-in health checks and connection state monitoring.
+
+### Configuration
+```go
+config := messaging.Config{
+    URL:                   "amqps://user:pass@host:5671",
+    ReconnectDelay:        1 * time.Second,
+    MaxReconnectDelay:     1 * time.Minute,
+    CircuitBreakerEnabled: true,
+    CircuitBreakerThreshold: 5,
+}
+client, err := messaging.NewRabbitMQClient(config)
+```
+
 ## 🛠️ Tech Stack
 
-- **Languge**: Go 1.24+
+- **Language**: Go 1.24+
 - **Internal APIs**: gRPC & Protocol Buffers
 - **Event Sourcing**: Kafka (via Redpanda)
-- **Async Workers**: RabbitMQ
+- **Async Workers**: RabbitMQ with Circuit Breakers & Auto-Discovery
 - **Databases**: PostgreSQL (Isolated per service)
 - **Caching/Real-time**: Redis
 - **Infrastructure**: Docker & Docker Compose
