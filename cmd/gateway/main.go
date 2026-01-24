@@ -14,6 +14,7 @@ import (
 	"github.com/marwan562/fintech-ecosystem/pkg/apikey"
 	"github.com/marwan562/fintech-ecosystem/pkg/jsonutil"
 	"github.com/marwan562/fintech-ecosystem/pkg/observability"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	pb "github.com/marwan562/fintech-ecosystem/proto/auth"
 

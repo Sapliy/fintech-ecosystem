@@ -15,11 +15,9 @@ import (
 	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
 	"github.com/marwan562/fintech-ecosystem/pkg/observability"
 	pb "github.com/marwan562/fintech-ecosystem/proto/ledger"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"context"
-
-	// NEW
-	// NEW
 
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
