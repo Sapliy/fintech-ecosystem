@@ -9,20 +9,22 @@ cd "$(dirname "$0")/.."
 
 echo "Generating OpenAPI specs..."
 
-# Create output directory
+# Check for protoc
+if ! command -v protoc &> /dev/null; then
+    echo "protoc could not be found. Please install it."
+    exit 1
+fi
+
+# Check for protoc-gen-openapiv2
+if ! command -v protoc-gen-openapiv2 &> /dev/null; then
+    echo "protoc-gen-openapiv2 could not be found. Installing..."
+    go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+fi
+
+# Run generation
 mkdir -p generated/openapi
+protoc -I . -I third_party \
+  --openapiv2_out=logtostderr=true,allow_merge=true,merge_file_name=fintech:generated/openapi \
+  $(find proto -name "*.proto")
 
-# Run buf or protoc via Docker to generate openapi.json
-# Using a widely used image for convenience (e.g., bufbuild/buf or similar via protoc)
-# For simplicity in this environment without buf installed, we'll try to use a standard protoc image 
-# that has grpc-gateway logic or similar. 
-# Actually, the plan specified using 'openapi-generator-cli' later, but first we need the Spec.
-# We will use a dockerized protoc command.
-
-docker run --rm -v $(pwd):/defs -w /defs namely/protoc-all:1.51_2 \
-    -d proto \
-    -l openapi \
-    --with-gateway \
-    -o generated/openapi
-
-echo "OpenAPI specs generated in generated/openapi/"
+echo "OpenAPI specs generated in generated/openapi/fintech.swagger.json"
