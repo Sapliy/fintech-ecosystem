@@ -4,8 +4,15 @@ package auth;
 
 option go_package = "github.com/marwan562/fintech-ecosystem/proto/auth";
 
+import "google/api/annotations.proto";
+
 service AuthService {
-  rpc ValidateKey(ValidateKeyRequest) returns (ValidateKeyResponse);
+  rpc ValidateKey(ValidateKeyRequest) returns (ValidateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/validate"
+      body: "*"
+    };
+  }
 }
 
 message ValidateKeyRequest {

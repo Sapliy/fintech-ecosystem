@@ -5,10 +5,20 @@ package ledger;
 option go_package = "github.com/marwan562/fintech-ecosystem/proto/ledger";
 
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
 
 service LedgerService {
-  rpc RecordTransaction(RecordTransactionRequest) returns (RecordTransactionResponse);
-  rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
+  rpc RecordTransaction(RecordTransactionRequest) returns (RecordTransactionResponse) {
+    option (google.api.http) = {
+      post: "/v1/ledger/transactions"
+      body: "*"
+    };
+  }
+  rpc GetAccount(GetAccountRequest) returns (GetAccountResponse) {
+    option (google.api.http) = {
+      get: "/v1/ledger/accounts/{account_id}"
+    };
+  }
 }
 
 message RecordTransactionRequest {

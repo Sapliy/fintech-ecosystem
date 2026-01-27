@@ -1,0 +1,25 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth, payments, ledger, gateway, notifications, fraud, reconciler]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.service
+          push: false
+          build-args: |
+            SERVICE_NAME=${{ matrix.service }}
+          tags: microservices-${{ matrix.service }}:latest

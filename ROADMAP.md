@@ -11,10 +11,10 @@ To provide a developer-first, scalable, and open-source financial infrastructure
 *Focus: Community, Documentation, and Developer Experience.*
 
 - [ ] **Community Standards**: Add `CONTRIBUTING.md`, Code of Conduct, and Pull Request templates.
-- [ ] **CI/CD Pipelines**: Implement GitHub Actions for:
-    - Automated Linting (`golangci-lint`)
-    - Unit & Integration Tests
-    - Docker Image Building
+- [x] **CI/CD Pipelines**: Implement GitHub Actions for:
+    - [x] Automated Linting (`golangci-lint`)
+    - [x] Unit & Integration Tests
+    - [x] Docker Image Building
 - [ ] **Security Hardening**:
     - Dependency scanning (Dependabot)
     - Secret scanning in CI
@@ -34,28 +34,36 @@ To provide a developer-first, scalable, and open-source financial infrastructure
     - Automated schema migrations (`golang-migrate`).
     - Connection pooling tuning.
 
-## Phase 3: Stripe Equivalence (Q3)
-*Focus: Feature Parity and Business Logic.*
+## Phase 3: Developer Experience & Platform Readiness (Q3)
+*Focus: Integration, SDKs, and "Platform" capabilities.*
 
-- [ ] **Admin Dashboard**:
-    - A Next.js/React web application for managing the ecosystem.
-    - View transactions, manage customers, and inspect webhooks.
-- [ ] **Subscription Engine**:
-    - New microservice for recurring billing.
-    - Support for plans, billing cycles, and pro-ration.
-- [ ] **Developer SDKs**:
-    - Official Node.js and Python clients.
-    - Typed `go` client for internal service communication.
+- [ ] **SDK Generation Pipeline**:
+    - [ ] Automate generation of `@fintech/node-sdk` and `fintech-python-sdk`.
+    - [ ] Add `google.api.http` annotations to Proto files for OpenAPI spec generation.
+- [ ] **Auth & Integration**:
+    - [ ] Upgrade Auth Service to support **OAuth2 / OIDC** (Client Credentials, Auth Code).
+    - [ ] Implement granular API Scopes (e.g., `payments:read`, `ledger:write`).
 - [ ] **Webhook Reliability**:
-    - Retry policies with exponential backoff.
-    - Webhook signing for security.
+    - [ ] Retry policies with exponential backoff.
+    - [ ] Webhook signing for security (HMAC).
 
-## Phase 4: Advanced Fintech (Q4)
-*Focus: Compliance and Advanced Features.*
+## Phase 4: Ecosystem & Monetization (Q4)
+*Focus: Enabling a marketplace business model and Enterprise features.*
 
-- [ ] **Fraud Detection**: Basic rule-based engine for flagging suspicious transactions.
-- [ ] **Multi-Currency**: Support for multiple currencies and FX handling.
-- [ ] **Compliance**: Tools to help with PCI-DSS readiness.
+- [ ] **"Connect" Marketplace Architecture**:
+    - [ ] **Connect Service**: Manage "Connected Accounts" (sub-merchants).
+    - [ ] **Revenue Splitting**: Logic to split transaction fees between Platform, Developer, and Merchant.
+- [ ] **Enterprise Features**:
+    - [ ] **SSO**: SAML/OIDC integration.
+    - [ ] **Audit Logs**: Enhanced visualization for compliance.
+    - [ ] **Team Management**: RBAC for organization teams.
+
+## Phase 5: Future & Community
+*Focus: Sustainable Open Source Growth.*
+
+- [ ] **Plugin System**: Manifest-based extensions for the Dashboard.
+- [ ] **Fraud Detection**: Basic rule-based engine.
+- [ ] **Multi-Currency Support**.
 
 ---
 
