@@ -72,9 +72,11 @@ func (h *PaymentHandler) IdempotencyMiddleware(next http.HandlerFunc) http.Handl
 }
 
 type CreateIntentRequest struct {
-	Amount      int64  `json:"amount"`
-	Currency    string `json:"currency"`
-	Description string `json:"description"`
+	Amount               int64  `json:"amount"`
+	Currency             string `json:"currency"`
+	Description          string `json:"description"`
+	ApplicationFeeAmount int64  `json:"application_fee_amount"`
+	OnBehalfOf           string `json:"on_behalf_of"` // Connected Account ID
 }
 
 type ConfirmIntentRequest struct {
@@ -138,11 +140,13 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	}
 
 	intent := &payment.PaymentIntent{
-		Amount:      req.Amount,
-		Currency:    req.Currency,
-		Status:      "requires_payment_method",
-		Description: req.Description,
-		UserID:      userID,
+		Amount:               req.Amount,
+		Currency:             req.Currency,
+		Status:               "requires_payment_method",
+		Description:          req.Description,
+		UserID:               userID,
+		ApplicationFeeAmount: req.ApplicationFeeAmount,
+		OnBehalfOf:           req.OnBehalfOf,
 	}
 
 	if err := h.repo.CreatePaymentIntent(r.Context(), intent); err != nil {
@@ -248,18 +252,59 @@ func (h *PaymentHandler) ConfirmPaymentIntent(w http.ResponseWriter, r *http.Req
 	}
 
 	// Record in Ledger via gRPC
-	_, err = h.ledgerClient.RecordTransaction(r.Context(), &pb.RecordTransactionRequest{
-		AccountId:   "user_" + intent.UserID, // Derived account ID
-		Amount:      intent.Amount,
-		Currency:    intent.Currency,
-		Description: "Payment for intent " + intent.ID,
-		ReferenceId: intent.ID,
-	})
-	if err != nil {
-		log.Printf("Failed to record transaction in ledger: %v", err)
-		// We log it, but the payment itself succeeded in the bank and our DB.
-		// In a production system, we might want to use a transactional outbox
-		// or retry mechanism to ensure the ledger is eventually consistent.
+	// If it's a split payment, record multiple entries
+	if intent.ApplicationFeeAmount > 0 && intent.OnBehalfOf != "" {
+		netAmount := intent.Amount - intent.ApplicationFeeAmount
+
+		// 1. Credit Connected Account (Net)
+		_, err = h.ledgerClient.RecordTransaction(r.Context(), &pb.RecordTransactionRequest{
+			AccountId:   "acc_" + intent.OnBehalfOf,
+			Amount:      netAmount,
+			Currency:    intent.Currency,
+			Description: "Payout for " + intent.ID,
+			ReferenceId: intent.ID,
+		})
+		if err != nil {
+			log.Printf("Failed to record net amount in ledger: %v", err)
+		}
+
+		// 2. Credit Platform Account (Fee)
+		_, err = h.ledgerClient.RecordTransaction(r.Context(), &pb.RecordTransactionRequest{
+			AccountId:   "platform_main",
+			Amount:      intent.ApplicationFeeAmount,
+			Currency:    intent.Currency,
+			Description: "Fee for " + intent.ID,
+			ReferenceId: intent.ID,
+		})
+		if err != nil {
+			log.Printf("Failed to record fee in ledger: %v", err)
+		}
+
+		// 3. Debit Customer (Total)
+		_, err = h.ledgerClient.RecordTransaction(r.Context(), &pb.RecordTransactionRequest{
+			AccountId:   "user_" + intent.UserID,
+			Amount:      -intent.Amount,
+			Currency:    intent.Currency,
+			Description: "Payment " + intent.ID,
+			ReferenceId: intent.ID,
+		})
+		if err != nil {
+			log.Printf("Failed to record debit in ledger: %v", err)
+		}
+	} else {
+		// Standard Payment
+		_, err = h.ledgerClient.RecordTransaction(r.Context(), &pb.RecordTransactionRequest{
+			AccountId: "user_" + intent.UserID, // This implementation seems to credit user?
+			// Looking at original code: amount was positive. Usually payments DEBIT user.
+			// Let's stick to original behavior but wrap it.
+			Amount:      intent.Amount,
+			Currency:    intent.Currency,
+			Description: "Payment for intent " + intent.ID,
+			ReferenceId: intent.ID,
+		})
+		if err != nil {
+			log.Printf("Failed to record transaction in ledger: %v", err)
+		}
 	}
 
 	intent.Status = "succeeded"
