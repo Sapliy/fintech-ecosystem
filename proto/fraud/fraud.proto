@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package fraud;
+
+option go_package = "github.com/marwan562/fintech-ecosystem/proto/fraud";
+
+service FraudService {
+  rpc CheckTransaction(FraudRequest) returns (FraudResponse);
+  rpc ReportRisk(RiskReport) returns (RiskResponse);
+}
+
+message FraudRequest {
+  string transaction_id = 1;
+  int64 amount = 2;
+  string currency = 3;
+  string user_id = 4;
+}
+
+message FraudResponse {
+  bool is_risky = 1;
+  float risk_score = 2;
+  repeated RuleResult results = 3;
+}
+
+message RiskReport {
+  string user_id = 1;
+  string reason = 2;
+  string urgency = 3; // LOW, MEDIUM, HIGH
+}
+
+message RiskResponse {
+  bool acknowledged = 1;
+}
+
+message RuleResult {
+  string rule_name = 1;
+  bool passed = 2;
+  string message = 3;
+}

@@ -3,9 +3,13 @@
 .gotmp
 
 /vendor/
+/bin/
 
-payments
-gateway
-fraud
-ledger
-notifications
+# Root binaries
+/payments
+/gateway
+/fraud
+/ledger
+/auth
+/notifications
+/micro
