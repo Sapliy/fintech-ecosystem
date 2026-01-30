@@ -1,71 +1,76 @@
-# 🗺️ Product Roadmap
+# Product Roadmap
 
-This document outlines the strategic plan to evolve this microservices ecosystem into a production-grade, open-source fintech platform—a true self-hosted alternative to Stripe.
-
-## 🌟 Vision
-To provide a developer-first, scalable, and open-source financial infrastructure that any company can run on their own cloud.
+Strategic plan to evolve this repo into a **production-grade, open-source fintech platform** — a self-hosted alternative to Stripe — with clear phases for quality, growth, and sustainable monetization.
 
 ---
 
-## Phase 1: Open Source Foundation (Q1)
-*Focus: Community, Documentation, and Developer Experience.*
+## Vision
 
-- [x] **Community Standards**: Add `CONTRIBUTING.md`, Code of Conduct, and Pull Request templates.
-- [x] **CI/CD Pipelines**: Implement GitHub Actions for:
-    - [x] Automated Linting (`golangci-lint`)
-    - [x] Unit & Integration Tests
-    - [x] Docker Image Building
-- [x] **Security Hardening**:
-    - [x] Dependency scanning (Dependabot)
-    - [x] Secret scanning in CI
-    - [x] API Key hashing improvements
-
-## Phase 2: Hyper-Scale Infrastructure (Q2)
-*Focus: Reliability, Observability, and Performance.*
-
-- [x] **Kubernetes Support**:
-    - [x] K8s manifests for all microservices (`deploy/k8s`).
-    - [x] Helm Charts for "one-click" deployment.
-- [x] **Observability Stack**:
-    - [x] Distributed Tracing (OpenTelemetry + Jaeger/Tempo).
-    - [x] Centralized Metrics (Prometheus + Grafana Dashboards).
-    - [x] Structured Logging (ELK/Loki).
-- [x] **Database Engineering**:
-    - [x] Automated schema migrations (`golang-migrate`).
-    - [x] Connection pooling tuning.
-
-## Phase 3: Developer Experience & Platform Readiness (Q3)
-*Focus: Integration, SDKs, and "Platform" capabilities.*
-
-- [x] **SDK Generation Pipeline**:
-    - [x] Automate generation of `@fintech/node-sdk` and `fintech-python-sdk`.
-    - [x] Add `google.api.http` annotations to Proto files for OpenAPI spec generation.
-- [x] **Auth & Integration**:
-    - [x] Upgrade Auth Service to support **OAuth2 / OIDC** (Client Credentials, Auth Code).
-    - [x] Implement granular API Scopes (e.g., `payments:read`, `ledger:write`).
-- [x] **Webhook Reliability**:
-    - [x] Retry policies with exponential backoff.
-    - [x] Webhook signing for security (HMAC).
-
-## Phase 4: Ecosystem & Monetization (Q4)
-*Focus: Enabling a marketplace business model and Enterprise features.*
-
-- [x] **"Connect" Marketplace Architecture**:
-    - [x] **Connect Service**: Manage "Connected Accounts" (sub-merchants).
-    - [x] **Revenue Splitting**: Logic to split transaction fees between Platform, Developer, and Merchant.
-- [x] **Enterprise Features**:
-    - [x] **SSO**: SAML/OIDC integration.
-    - [x] **Audit Logs**: Enhanced visualization for compliance.
-    - [x] **Team Management**: RBAC for organization teams.
-
-## Phase 5: Future & Community
-*Focus: Sustainable Open Source Growth.*
-
-- [x] **Plugin System**: Manifest-based extensions for the Dashboard.
-- [x] **Fraud Detection**: Basic rule-based engine.
-- [x] **Multi-Currency Support**.
+Provide **developer-first, scalable, open-source financial infrastructure** that any team can run on their own cloud: payments, ledger, and webhooks with a small, clear scope and a path to hosted offerings and paid support.
 
 ---
 
-## 🤝 Contributing
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) to get started.
+## Versioned Journey
+
+| Version | Focus | Outcome |
+|---------|--------|---------|
+| **v0.x** | Foundation | Core primitives (payments, ledger, webhooks), docs, community standards. |
+| **v1.0** | Quality & Credibility | Unit/integration tests, idempotency, clean layering, contribution rules. Production-ready for self-host. |
+| **v1.x** | Growth & Scale | Scale, observability, SDKs, more primitives. |
+| **v2.x** | Services & Monetization | Hosted version, paid support, custom integrations for startups. |
+
+---
+
+## Phase: Quality & Credibility (v1.0)
+*Goal: Trust and maintainability. Ensure the platform is safe for production use and easy for contributors to join.*
+
+### 🛠 Reliability & Testing
+- [ ] **Unit Tests for Services** — Achieve high coverage for `internal/` (payment, ledger, auth). Focus on core business logic.
+- [ ] **Table-Driven Tests** — Implement Go table-driven tests for all handlers and domain logic to cover edge cases efficiently.
+- [ ] **Mock Interfaces** — Extract interfaces for repositories and external clients (Redis, Kafka) to allow robust unit testing without dependencies.
+- [ ] **Idempotency Keys** — Implement `Idempotency-Key` support for payment creation and confirmation to handle retries safely.
+
+### 🏗 Architecture & Integrity
+- [ ] **Ledger-Only Balance Updates** — Remove any code path updating balances directly. Enforce "balance = sum(entries)" as the single source of truth.
+- [ ] **Layered Separation** — Clearly separate API (HTTP/gRPC), Domain (business logic), and Infrastructure (DB/Messaging). Keep the domain logic pure and framework-agnostic.
+
+---
+
+## Phase: Growth and Long-Term Scale (v1.x)
+*Goal: Expand the ecosystem, improve developer experience (DX), and prepare for high-volume traffic.*
+
+### 🚀 Platform & DX
+- [ ] **SDKs & API Stability** — Release official SDKs (Node, Python, Go) and maintain a stable, versioned REST/OpenAPI spec.
+- [ ] **Advanced Observability** — Implement detailed dashboards and SLOs for latency and error rates across all services.
+- [ ] **Wallets as a First-Class Primitive** — Add dedicated APIs for wallet management (top-ups, transfers), still backed by the ledger.
+
+### 📈 Features & Scale
+- [ ] **Subscriptions & Billing** — Build recurring payment logic on top of the existing payment and ledger primitives.
+- [ ] **Multi-tenancy & Rate Limiting** — Add tenant isolation and per-API-key quotas to support managed hosting environments.
+
+---
+
+## Phase: Turn it into Services (v2.x)
+*Goal: Sustainable open source through optional commercial offerings.*
+
+### ☁️ Managed Offerings
+- [ ] **Hosted Version (Fintech Cloud)** — Offer a managed deployment path where we handle infrastructure, security, and updates.
+- [ ] **Enterprise Compliance** — SOC2/PCI-DSS compliance documentation and hardened security controls for the hosted tier.
+
+### 💼 Commercial Support
+- [ ] **Paid Support & SLAs** — Offer tiered support packages for companies requiring guaranteed uptime and priority bugfixes.
+- [ ] **Custom Integrations** — Provide professional services for complex migrations (e.g., from Stripe) and bespoke marketplace setups.
+
+---
+
+## Completed (Foundation)
+- [x] Core Primitives: Payments, Ledger, Webhooks.
+- [x] Community: CONTRIBUTING, Code of Conduct, PR Templates.
+- [x] Infrastructure: Kubernetes/Helm, Docker Compose, CI/CD.
+- [x] Security: API Key hashing, OAuth2/OIDC, Scopes.
+- [x] Advanced Features: Connect/Marketplace, RBAC, Webhook Signing.
+
+---
+
+## Contributing
+We welcome contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for good first issues, commit style, and development setup.
