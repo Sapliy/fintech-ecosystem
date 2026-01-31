@@ -31,8 +31,8 @@ Provide **developer-first, scalable, open-source financial infrastructure** that
 - [x] **Idempotency Keys** — Implement `Idempotency-Key` support for payment creation and confirmation to handle retries safely.
 
 ### 🏗 Architecture & Integrity
-- [ ] **Ledger-Only Balance Updates** — Remove any code path updating balances directly. Enforce "balance = sum(entries)" as the single source of truth.
-- [ ] **Layered Separation** — Clearly separate API (HTTP/gRPC), Domain (business logic), and Infrastructure (DB/Messaging). Keep the domain logic pure and framework-agnostic.
+- [x] **Ledger-Only Balance Updates** — Remove any code path updating balances directly. Enforce "balance = sum(entries)" as the single source of truth.
+- [x] **Layered Separation** — Clearly separate API (HTTP/gRPC), Domain (business logic), and Infrastructure (DB/Messaging). Keep the domain logic pure and framework-agnostic.
 
 ---
 
