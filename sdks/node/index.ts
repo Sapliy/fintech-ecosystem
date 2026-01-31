@@ -1,3 +1,4 @@
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
 export interface RecordTransactionRequest {
   accountId: string;
@@ -28,42 +29,44 @@ export interface ValidateKeyResponse {
 }
 
 export class FintechClient {
-  private apiKey: string;
-  private baseURL: string;
+  private client: AxiosInstance;
 
   constructor(apiKey: string, baseURL: string = 'http://localhost:8080') {
-    this.apiKey = apiKey;
-    this.baseURL = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL;
-  }
-
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseURL}${path}`;
-    const response = await fetch(url, {
-      ...options,
+    this.client = axios.create({
+      baseURL: baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL,
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': this.apiKey,
-        ...options.headers,
+        'X-API-Key': apiKey,
       },
     });
+  }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Fintech API Error (${response.status}): ${errorText || response.statusText}`);
+  private async request<T>(path: string, options: AxiosRequestConfig = {}): Promise<T> {
+    try {
+      const response = await this.client.request<T>({
+        url: path,
+        ...options,
+      });
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        throw new Error(`Fintech API Error (${error.response.status}): ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
     }
-
-    return response.json() as Promise<T>;
   }
 
   public ledger = {
     recordTransaction: async (req: RecordTransactionRequest): Promise<RecordTransactionResponse> => {
       return this.request<RecordTransactionResponse>('/v1/ledger/transactions', {
         method: 'POST',
-        body: JSON.stringify(req),
+        data: req,
       });
     },
     getAccount: async (accountId: string): Promise<GetAccountResponse> => {
-      return this.request<GetAccountResponse>(`/v1/ledger/accounts/${accountId}`);
+      return this.request<GetAccountResponse>(`/v1/ledger/accounts/${accountId}`, {
+        method: 'GET',
+      });
     },
   };
 
@@ -71,7 +74,7 @@ export class FintechClient {
     validateKey: async (keyHash: string): Promise<ValidateKeyResponse> => {
       return this.request<ValidateKeyResponse>('/v1/auth/validate', {
         method: 'POST',
-        body: JSON.stringify({ keyHash }),
+        data: { keyHash },
       });
     },
   };
