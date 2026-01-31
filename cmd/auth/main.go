@@ -104,11 +104,12 @@ func main() {
 
 	log.Println("Auth service HTTP starting on :8081")
 
-	// Wrap handler with OpenTelemetry
+	// Wrap handler with OpenTelemetry and Prometheus
 	otelHandler := otelhttp.NewHandler(mux, "auth-request")
+	promHandler := monitoring.PrometheusMiddleware(otelHandler)
 
 	go func() {
-		if err := http.ListenAndServe(":8081", otelHandler); err != nil {
+		if err := http.ListenAndServe(":8081", promHandler); err != nil {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	}()
@@ -118,7 +119,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen for gRPC: %v", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(monitoring.UnaryServerInterceptor("auth")),
+	)
 	pb.RegisterAuthServiceServer(s, NewAuthGRPCServer(authService))
 
 	log.Println("Auth service gRPC starting on :50051")

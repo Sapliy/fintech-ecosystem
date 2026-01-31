@@ -40,9 +40,9 @@ Provide **developer-first, scalable, open-source financial infrastructure** that
 *Goal: Expand the ecosystem, improve developer experience (DX), and prepare for high-volume traffic.*
 
 ### 🚀 Platform & DX
-- [ ] **SDKs & API Stability** — Release official SDKs (Node, Python, Go) and maintain a stable, versioned REST/OpenAPI spec.
-- [ ] **Advanced Observability** — Implement detailed dashboards and SLOs for latency and error rates across all services.
-- [ ] **Wallets as a First-Class Primitive** — Add dedicated APIs for wallet management (top-ups, transfers), still backed by the ledger.
+- [x] **SDKs & API Stability** — Release official SDKs (Node, Python, Go) and maintain a stable, versioned REST/OpenAPI spec.
+- [x] **Advanced Observability** — Implement detailed dashboards and SLOs for latency and error rates across all services.
+- [x] **Wallets as a First-Class Primitive** — Add dedicated APIs for wallet management (top-ups, transfers), still backed by the ledger.
 
 ### 📈 Features & Scale
 - [ ] **Subscriptions & Billing** — Build recurring payment logic on top of the existing payment and ledger primitives.

@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	pb "github.com/marwan562/fintech-ecosystem/proto/auth"
+	walletpb "github.com/marwan562/fintech-ecosystem/proto/wallet"
 
 	"github.com/gorilla/websocket"
 	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
@@ -40,24 +41,28 @@ type GatewayHandler struct {
 	authServiceURL    string
 	paymentServiceURL string
 	ledgerServiceURL  string
+	walletServiceURL  string
 	rdb               *redis.Client
 	upgrader          websocket.Upgrader
 	authClient        pb.AuthServiceClient
+	walletClient      walletpb.WalletServiceClient
 	hmacSecret        string
 }
 
 // NewGatewayHandler creates a new instance of GatewayHandler.
-func NewGatewayHandler(auth, payment, ledger string, rdb *redis.Client, authClient pb.AuthServiceClient, hmacSecret string) *GatewayHandler {
+func NewGatewayHandler(auth, payment, ledger, wallet string, rdb *redis.Client, authClient pb.AuthServiceClient, walletClient walletpb.WalletServiceClient, hmacSecret string) *GatewayHandler {
 	return &GatewayHandler{
 		authServiceURL:    auth,
 		paymentServiceURL: payment,
 		ledgerServiceURL:  ledger,
+		walletServiceURL:  wallet,
 		rdb:               rdb,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
-		authClient: authClient,
-		hmacSecret: hmacSecret,
+		authClient:   authClient,
+		walletClient: walletClient,
+		hmacSecret:   hmacSecret,
 	}
 }
 
@@ -199,6 +204,9 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.proxyRequest(h.ledgerServiceURL, w, r)
 		})).ServeHTTP(w, r)
 
+	case strings.HasPrefix(path, "/wallets"):
+		h.proxyRequest(h.walletServiceURL, w, r)
+
 	default:
 		jsonutil.WriteErrorJSON(w, "Not Found")
 	}
@@ -270,6 +278,11 @@ func main() {
 		ledgerURL = "http://127.0.0.1:8083"
 	}
 
+	walletURL := os.Getenv("WALLET_SERVICE_URL")
+	if walletURL == "" {
+		walletURL = "http://127.0.0.1:8084"
+	}
+
 	rdb := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
@@ -285,7 +298,10 @@ func main() {
 	if authGRPCAddr == "" {
 		authGRPCAddr = "localhost:50051"
 	}
-	conn, err := grpc.NewClient(authGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(authGRPCAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(monitoring.UnaryClientInterceptor("gateway")),
+	)
 	if err != nil {
 		log.Fatalf("did not connect to auth gRPC: %v", err)
 	}
@@ -295,6 +311,21 @@ func main() {
 		}
 	}()
 	authClient := pb.NewAuthServiceClient(conn)
+
+	// Setup Wallet Service gRPC Client
+	walletGRPCAddr := os.Getenv("WALLET_GRPC_ADDR")
+	if walletGRPCAddr == "" {
+		walletGRPCAddr = "localhost:50053"
+	}
+	connWallet, err := grpc.NewClient(walletGRPCAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(monitoring.UnaryClientInterceptor("gateway")),
+	)
+	if err != nil {
+		log.Fatalf("did not connect to wallet gRPC: %v", err)
+	}
+	defer connWallet.Close()
+	walletClient := walletpb.NewWalletServiceClient(connWallet)
 
 	// Initialize Tracer
 	shutdown, err := observability.InitTracer(context.Background(), observability.Config{
@@ -323,14 +354,15 @@ func main() {
 		log.Println("Warning: API_KEY_HMAC_SECRET not set, using default for dev")
 	}
 
-	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, rdb, authClient, hmacSecret)
+	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, walletURL, rdb, authClient, walletClient, hmacSecret)
 
-	// Wrap handler with OpenTelemetry
+	// Wrap handler with OpenTelemetry and Prometheus
 	otelHandler := otelhttp.NewHandler(gateway, "gateway-request")
+	promHandler := monitoring.PrometheusMiddleware(otelHandler)
 
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: otelHandler,
+		Handler: promHandler,
 	}
 
 	log.Println("Gateway service starting on :8080")

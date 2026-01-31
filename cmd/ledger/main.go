@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/marwan562/fintech-ecosystem/pkg/messaging"
+	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 )
@@ -110,12 +111,12 @@ func main() {
 
 	log.Println("Ledger service HTTP starting on :8083")
 
-	// Wrap handler with OpenTelemetry
+	// Wrap handler with OpenTelemetry and Prometheus
 	otelHandler := otelhttp.NewHandler(mux, "ledger-request")
+	promHandler := monitoring.PrometheusMiddleware(otelHandler)
 
-	// Standard metrics/tracing wrapper can be added here
 	go func() {
-		if err := http.ListenAndServe(":8083", otelHandler); err != nil {
+		if err := http.ListenAndServe(":8083", promHandler); err != nil {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	}()
@@ -125,7 +126,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen for gRPC: %v", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(monitoring.UnaryServerInterceptor("ledger")),
+	)
 	pb.RegisterLedgerServiceServer(s, NewLedgerGRPCServer(service))
 
 	log.Println("Ledger service gRPC starting on :50052")

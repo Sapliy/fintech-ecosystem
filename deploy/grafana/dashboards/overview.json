@@ -1,0 +1,32 @@
+{
+  "title": "Fintech Ecosystem - Overview",
+  "panels": [
+    {
+      "title": "HTTP Latency (P99)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service))"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Error Rate",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{status=~\"5..\"}[5m])) by (service)"
+        }
+      ]
+    },
+    {
+      "title": "gRPC Latency (P99)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(grpc_request_duration_seconds_bucket[5m])) by (le, service))"
+        }
+      ]
+    }
+  ]
+}

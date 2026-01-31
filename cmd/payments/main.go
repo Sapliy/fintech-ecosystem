@@ -73,7 +73,10 @@ func main() {
 	if ledgerGRPCAddr == "" {
 		ledgerGRPCAddr = "localhost:50052"
 	}
-	conn, err := grpc.NewClient(ledgerGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(ledgerGRPCAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(monitoring.UnaryClientInterceptor("payments")),
+	)
 	if err != nil {
 		log.Fatalf("did not connect to ledger gRPC: %v", err)
 	}
@@ -185,10 +188,11 @@ func main() {
 
 	log.Println("Payments service starting on :8082")
 
-	// Wrap handler with OpenTelemetry
+	// Wrap handler with OpenTelemetry and Prometheus
 	otelHandler := otelhttp.NewHandler(mux, "payments-request")
+	promHandler := monitoring.PrometheusMiddleware(otelHandler)
 
-	if err := http.ListenAndServe(":8082", otelHandler); err != nil {
+	if err := http.ListenAndServe(":8082", promHandler); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
