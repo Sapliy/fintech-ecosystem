@@ -79,7 +79,7 @@ Provide **developer-first, scalable, open-source financial infrastructure** that
 ### 🛠 SDK Enhancement
 - [ ] **Complete SDK Coverage** — Extend all SDKs to cover Payments, Wallets, Billing, Connect, and Webhooks APIs.
 - [ ] **Comprehensive Examples** — Create real-world examples for Node.js, Python, and Go.
-- [ ] **SDK Publishing** — Publish to npm (@sapliy/fintech), PyPI (sapliy-fintech), and Go modules.
+- [ ] **SDK Publishing** — Publish to npm (@sapliyio/fintech), PyPI (sapliy-fintech), and Go modules.
 - [ ] **OpenAPI-based Generation** — Auto-generate SDKs from the OpenAPI spec for consistency.
 
 ### ⚡ Performance & Scale
@@ -99,7 +99,7 @@ Provide **developer-first, scalable, open-source financial infrastructure** that
 *Goal: Comprehensive fintech toolkit for developers and startups.*
 
 ### 📦 Supporting Packages
-- [ ] **@sapliy/fintech-ui** — React components for checkout, payment forms, dashboards.
+- [ ] **@sapliyio/fintech-ui** — React components for checkout, payment forms, dashboards.
 - [ ] **fintech-testing** — Testing utilities, mock servers, fixtures for all SDKs.
 - [ ] **fintech-cli v2** — Enhanced CLI with init, generate, and deploy commands.
 - [ ] **fintech-examples** — Full sample applications (e-commerce, SaaS billing, marketplace).

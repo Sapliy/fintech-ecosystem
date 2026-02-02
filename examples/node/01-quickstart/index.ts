@@ -1,4 +1,4 @@
-import { FintechClient } from 'fintech-node-sdk';
+import { FintechClient } from '@sapliyio/fintech';
 import * as dotenv from 'dotenv';
 
 dotenv.config();

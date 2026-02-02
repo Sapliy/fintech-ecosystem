@@ -38,25 +38,29 @@ var (
 
 // GatewayHandler holds the configuration for upstream service URLs and Redis.
 type GatewayHandler struct {
-	authServiceURL    string
-	paymentServiceURL string
-	ledgerServiceURL  string
-	walletServiceURL  string
-	rdb               *redis.Client
-	upgrader          websocket.Upgrader
-	authClient        pb.AuthServiceClient
-	walletClient      walletpb.WalletServiceClient
-	hmacSecret        string
+	authServiceURL         string
+	paymentServiceURL      string
+	ledgerServiceURL       string
+	walletServiceURL       string
+	billingServiceURL      string
+	notificationServiceURL string
+	rdb                    *redis.Client
+	upgrader               websocket.Upgrader
+	authClient             pb.AuthServiceClient
+	walletClient           walletpb.WalletServiceClient
+	hmacSecret             string
 }
 
 // NewGatewayHandler creates a new instance of GatewayHandler.
-func NewGatewayHandler(auth, payment, ledger, wallet string, rdb *redis.Client, authClient pb.AuthServiceClient, walletClient walletpb.WalletServiceClient, hmacSecret string) *GatewayHandler {
+func NewGatewayHandler(auth, payment, ledger, wallet, billing, notification string, rdb *redis.Client, authClient pb.AuthServiceClient, walletClient walletpb.WalletServiceClient, hmacSecret string) *GatewayHandler {
 	return &GatewayHandler{
-		authServiceURL:    auth,
-		paymentServiceURL: payment,
-		ledgerServiceURL:  ledger,
-		walletServiceURL:  wallet,
-		rdb:               rdb,
+		authServiceURL:         auth,
+		paymentServiceURL:      payment,
+		ledgerServiceURL:       ledger,
+		walletServiceURL:       wallet,
+		billingServiceURL:      billing,
+		notificationServiceURL: notification,
+		rdb:                    rdb,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -207,6 +211,14 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(path, "/wallets"):
 		h.proxyRequest(h.walletServiceURL, w, r)
 
+	case strings.HasPrefix(path, "/billing"):
+		http.StripPrefix("/billing", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h.proxyRequest(h.billingServiceURL, w, r)
+		})).ServeHTTP(w, r)
+
+	case strings.HasPrefix(path, "/webhooks") || strings.HasPrefix(path, "/notifications"):
+		h.proxyRequest(h.notificationServiceURL, w, r)
+
 	default:
 		jsonutil.WriteErrorJSON(w, "Not Found")
 	}
@@ -280,7 +292,20 @@ func main() {
 
 	walletURL := os.Getenv("WALLET_SERVICE_URL")
 	if walletURL == "" {
-		walletURL = "http://127.0.0.1:8084"
+		walletURL = "http://127.0.0.1:8085"
+	}
+
+	notificationURL := os.Getenv("NOTIFICATION_SERVICE_URL")
+	if notificationURL == "" {
+		notificationURL = "http://127.0.0.1:8084"
+	}
+
+	billingURL := os.Getenv("BILLING_SERVICE_URL")
+	if billingURL == "" {
+		billingURL = "http://127.0.0.1:8089" // Assuming a port for billing REST if added, or proxying gRPC?
+		// Note: Billing seems gRPC only currently, but Gateway proxies HTTP.
+		// For now, I'll point it to where billing might listen or keep it for future REST expansion.
+		// If Billing has no REST handlers, this will 404/502 which is expected for now.
 	}
 
 	rdb := redis.NewClient(&redis.Options{
@@ -354,7 +379,7 @@ func main() {
 		log.Println("Warning: API_KEY_HMAC_SECRET not set, using default for dev")
 	}
 
-	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, walletURL, rdb, authClient, walletClient, hmacSecret)
+	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, walletURL, billingURL, notificationURL, rdb, authClient, walletClient, hmacSecret)
 
 	// Wrap handler with OpenTelemetry and Prometheus
 	otelHandler := otelhttp.NewHandler(gateway, "gateway-request")

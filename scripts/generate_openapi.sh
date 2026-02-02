@@ -18,7 +18,7 @@ fi
 # Check for protoc-gen-openapiv2
 if ! command -v protoc-gen-openapiv2 &> /dev/null; then
     echo "protoc-gen-openapiv2 could not be found. Installing..."
-    go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+    GO111MODULE=on go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 fi
 
 # Run generation

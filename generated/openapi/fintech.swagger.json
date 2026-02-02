@@ -1,10 +1,13 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "proto/ledger/ledger.proto",
+    "title": "proto/payments/payments.proto",
     "version": "version not set"
   },
   "tags": [
+    {
+      "name": "PaymentService"
+    },
     {
       "name": "LedgerService"
     },
@@ -15,7 +18,16 @@
       "name": "FraudService"
     },
     {
+      "name": "WalletService"
+    },
+    {
       "name": "ConnectService"
+    },
+    {
+      "name": "NotificationService"
+    },
+    {
+      "name": "BillingService"
     }
   ],
   "consumes": [
@@ -329,6 +341,154 @@
         ]
       }
     },
+    "/v1/billing/subscriptions": {
+      "get": {
+        "operationId": "BillingService_ListSubscriptions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/billingListSubscriptionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "orgId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "BillingService"
+        ]
+      },
+      "post": {
+        "operationId": "BillingService_CreateSubscription",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/billingSubscription"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/billingCreateSubscriptionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "BillingService"
+        ]
+      }
+    },
+    "/v1/billing/subscriptions/{id}": {
+      "get": {
+        "operationId": "BillingService_GetSubscription",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/billingSubscription"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "BillingService"
+        ]
+      }
+    },
+    "/v1/billing/subscriptions/{id}/cancel": {
+      "post": {
+        "operationId": "BillingService_CancelSubscription",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/billingSubscription"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BillingServiceCancelSubscriptionBody"
+            }
+          }
+        ],
+        "tags": [
+          "BillingService"
+        ]
+      }
+    },
     "/v1/ledger/accounts/{accountId}": {
       "get": {
         "operationId": "LedgerService_GetAccount",
@@ -390,9 +550,383 @@
           "LedgerService"
         ]
       }
+    },
+    "/v1/notifications": {
+      "get": {
+        "operationId": "NotificationService_GetNotificationHistory",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/notificationsGetNotificationHistoryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "NotificationService"
+        ]
+      }
+    },
+    "/v1/payments/intents": {
+      "post": {
+        "operationId": "PaymentService_CreatePaymentIntent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/paymentsPaymentIntent"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/paymentsCreatePaymentIntentRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PaymentService"
+        ]
+      }
+    },
+    "/v1/payments/intents/{id}/confirm": {
+      "post": {
+        "operationId": "PaymentService_ConfirmPaymentIntent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/paymentsPaymentIntent"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PaymentServiceConfirmPaymentIntentBody"
+            }
+          }
+        ],
+        "tags": [
+          "PaymentService"
+        ]
+      }
+    },
+    "/v1/payments/intents/{id}/refund": {
+      "post": {
+        "operationId": "PaymentService_RefundPaymentIntent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/paymentsPaymentIntent"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/PaymentServiceRefundPaymentIntentBody"
+            }
+          }
+        ],
+        "tags": [
+          "PaymentService"
+        ]
+      }
+    },
+    "/v1/wallets": {
+      "post": {
+        "operationId": "WalletService_CreateWallet",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/walletWallet"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/walletCreateWalletRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WalletService"
+        ]
+      }
+    },
+    "/v1/wallets/top-up": {
+      "post": {
+        "operationId": "WalletService_TopUp",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/walletTransactionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/walletTopUpRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WalletService"
+        ]
+      }
+    },
+    "/v1/wallets/transfer": {
+      "post": {
+        "operationId": "WalletService_Transfer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/walletTransactionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/walletTransferRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WalletService"
+        ]
+      }
+    },
+    "/v1/wallets/{userId}": {
+      "get": {
+        "operationId": "WalletService_GetWallet",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/walletWallet"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "WalletService"
+        ]
+      }
+    },
+    "/v1/webhooks/endpoints": {
+      "get": {
+        "operationId": "NotificationService_ListWebhookEndpoints",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/notificationsListWebhookEndpointsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "NotificationService"
+        ]
+      },
+      "post": {
+        "operationId": "NotificationService_CreateWebhookEndpoint",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/notificationsWebhookEndpoint"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/notificationsCreateWebhookEndpointRequest"
+            }
+          }
+        ],
+        "tags": [
+          "NotificationService"
+        ]
+      }
+    },
+    "/v1/webhooks/endpoints/{id}": {
+      "delete": {
+        "operationId": "NotificationService_DeleteWebhookEndpoint",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/notificationsDeleteWebhookEndpointResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "NotificationService"
+        ]
+      }
     }
   },
   "definitions": {
+    "BillingServiceCancelSubscriptionBody": {
+      "type": "object"
+    },
+    "PaymentServiceConfirmPaymentIntentBody": {
+      "type": "object",
+      "properties": {
+        "paymentMethodId": {
+          "type": "string"
+        }
+      }
+    },
+    "PaymentServiceRefundPaymentIntentBody": {
+      "type": "object"
+    },
     "authAddTeamMemberRequest": {
       "type": "object",
       "properties": {
@@ -589,6 +1123,10 @@
         },
         "role": {
           "type": "string"
+        },
+        "rateLimitQuota": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -621,7 +1159,37 @@
         }
       }
     },
-    "connectAccount": {
+    "billingCreateSubscriptionRequest": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "orgId": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        }
+      }
+    },
+    "billingListSubscriptionsResponse": {
+      "type": "object",
+      "properties": {
+        "subscriptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/billingSubscription"
+          }
+        },
+        "totalCount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "billingSubscription": {
       "type": "object",
       "properties": {
         "id": {
@@ -630,106 +1198,30 @@
         "userId": {
           "type": "string"
         },
-        "type": {
+        "orgId": {
           "type": "string"
         },
-        "country": {
-          "type": "string"
-        },
-        "email": {
-          "type": "string"
-        },
-        "businessType": {
+        "planId": {
           "type": "string"
         },
         "status": {
+          "type": "string"
+        },
+        "currentPeriodStart": {
           "type": "string",
-          "title": "e.g., \"active\", \"pending\", \"restricted\""
+          "format": "date-time"
         },
-        "capabilities": {
-          "$ref": "#/definitions/connectCapabilities"
-        },
-        "payoutSettings": {
-          "$ref": "#/definitions/connectPayoutSettings"
-        },
-        "platformFeePercent": {
-          "type": "number",
-          "format": "double"
+        "currentPeriodEnd": {
+          "type": "string",
+          "format": "date-time"
         },
         "createdAt": {
           "type": "string",
           "format": "date-time"
         },
-        "updatedAt": {
+        "canceledAt": {
           "type": "string",
           "format": "date-time"
-        }
-      }
-    },
-    "connectCapabilities": {
-      "type": "object",
-      "properties": {
-        "transfers": {
-          "type": "boolean",
-          "title": "Ability to receive transfers"
-        },
-        "cardPayments": {
-          "type": "boolean",
-          "title": "Ability to process card payments"
-        }
-      }
-    },
-    "connectPayoutSettings": {
-      "type": "object",
-      "properties": {
-        "interval": {
-          "type": "string",
-          "title": "e.g., \"daily\", \"weekly\", \"manual\""
-        },
-        "bankAccountId": {
-          "type": "string",
-          "title": "ID of the bank account where payouts are sent"
-        }
-      }
-    },
-    "fraudFraudResponse": {
-      "type": "object",
-      "properties": {
-        "isRisky": {
-          "type": "boolean"
-        },
-        "riskScore": {
-          "type": "number",
-          "format": "float"
-        },
-        "results": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/fraudRuleResult"
-          }
-        }
-      }
-    },
-    "fraudRiskResponse": {
-      "type": "object",
-      "properties": {
-        "acknowledged": {
-          "type": "boolean"
-        }
-      }
-    },
-    "fraudRuleResult": {
-      "type": "object",
-      "properties": {
-        "ruleName": {
-          "type": "string"
-        },
-        "passed": {
-          "type": "boolean"
-        },
-        "message": {
-          "type": "string"
         }
       }
     },
@@ -786,6 +1278,169 @@
         }
       }
     },
+    "notificationsCreateWebhookEndpointRequest": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "enabledEvents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "notificationsDeleteWebhookEndpointResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "notificationsGetNotificationHistoryResponse": {
+      "type": "object",
+      "properties": {
+        "notifications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/notificationsNotification"
+          }
+        }
+      }
+    },
+    "notificationsListWebhookEndpointsResponse": {
+      "type": "object",
+      "properties": {
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/notificationsWebhookEndpoint"
+          }
+        }
+      }
+    },
+    "notificationsNotification": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "sentAt": {
+          "type": "string"
+        }
+      }
+    },
+    "notificationsWebhookEndpoint": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "enabledEvents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "secret": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "paymentsCreatePaymentIntentRequest": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "applicationFeeAmount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "onBehalfOf": {
+          "type": "string"
+        }
+      }
+    },
+    "paymentsPaymentIntent": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "applicationFeeAmount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "onBehalfOf": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -811,6 +1466,85 @@
             "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
+        }
+      }
+    },
+    "walletCreateWalletRequest": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        }
+      }
+    },
+    "walletTopUpRequest": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "referenceId": {
+          "type": "string"
+        }
+      }
+    },
+    "walletTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "transactionId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "walletTransferRequest": {
+      "type": "object",
+      "properties": {
+        "fromUserId": {
+          "type": "string"
+        },
+        "toUserId": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "referenceId": {
+          "type": "string"
+        }
+      }
+    },
+    "walletWallet": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "string",
+          "format": "int64"
+        },
+        "currency": {
+          "type": "string"
         }
       }
     }

@@ -3,9 +3,9 @@ import time
 import sys
 
 # Ensure we can import the SDK if not installed
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../sdks/python')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../fintech-sdk-python')))
 
-from fintech import FintechClient
+from sapliyio_fintech import FintechClient
 
 def main():
     print("🚀 Starting Sapliy Fintech Quickstart (Python)...")

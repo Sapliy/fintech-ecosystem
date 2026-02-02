@@ -7,12 +7,11 @@ import (
 	"os"
 	"time"
 
-	fintech "github.com/marwan562/fintech-ecosystem/sdks/go"
+	sapliyio "github.com/sapliy/fintech-sdk-go"
 )
 
 func main() {
 	fmt.Println("🚀 Starting Sapliy Fintech Quickstart (Go)...")
-
 	apiKey := os.Getenv("API_KEY")
 	if apiKey == "" {
 		apiKey = "sk_test_123"
@@ -24,7 +23,7 @@ func main() {
 	}
 
 	// Initialize the client
-	client := fintech.NewClient(apiKey, fintech.WithBaseURL(baseURL))
+	client := sapliyio.NewClient(apiKey, sapliyio.WithBaseURL(baseURL))
 
 	ctx := context.Background()
 
@@ -40,7 +39,7 @@ func main() {
 	description := "Quickstart Payment"
 	refID := fmt.Sprintf("ref_%d", time.Now().Unix())
 
-	txReq := &fintech.RecordTransactionRequest{
+	txReq := &sapliyio.RecordTransactionRequest{
 		AccountID:   accountID,
 		Amount:      1000, // $10.00
 		Currency:    "USD",

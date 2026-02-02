@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package notifications;
+
+option go_package = "github.com/marwan562/fintech-ecosystem/proto/notifications";
+
+import "google/api/annotations.proto";
+
+service NotificationService {
+  rpc CreateWebhookEndpoint(CreateWebhookEndpointRequest) returns (WebhookEndpoint) {
+    option (google.api.http) = {
+      post: "/v1/webhooks/endpoints"
+      body: "*"
+    };
+  }
+
+  rpc ListWebhookEndpoints(ListWebhookEndpointsRequest) returns (ListWebhookEndpointsResponse) {
+    option (google.api.http) = {
+      get: "/v1/webhooks/endpoints"
+    };
+  }
+
+  rpc DeleteWebhookEndpoint(DeleteWebhookEndpointRequest) returns (DeleteWebhookEndpointResponse) {
+    option (google.api.http) = {
+      delete: "/v1/webhooks/endpoints/{id}"
+    };
+  }
+
+  rpc GetNotificationHistory(GetNotificationHistoryRequest) returns (GetNotificationHistoryResponse) {
+    option (google.api.http) = {
+      get: "/v1/notifications"
+    };
+  }
+}
+
+message CreateWebhookEndpointRequest {
+  string url = 1;
+  repeated string enabled_events = 2;
+  string description = 3;
+}
+
+message WebhookEndpoint {
+  string id = 1;
+  string url = 2;
+  repeated string enabled_events = 3;
+  string secret = 4;
+  string status = 5;
+  string created_at = 6;
+}
+
+message ListWebhookEndpointsRequest {}
+
+message ListWebhookEndpointsResponse {
+  repeated WebhookEndpoint endpoints = 1;
+}
+
+message DeleteWebhookEndpointRequest {
+  string id = 1;
+}
+
+message DeleteWebhookEndpointResponse {
+  bool success = 1;
+}
+
+message GetNotificationHistoryRequest {
+  string user_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message Notification {
+  string id = 1;
+  string user_id = 2;
+  string recipient = 3;
+  string channel = 4;
+  string title = 5;
+  string content = 6;
+  string status = 7;
+  string created_at = 8;
+  string sent_at = 9;
+}
+
+message GetNotificationHistoryResponse {
+  repeated Notification notifications = 1;
+}

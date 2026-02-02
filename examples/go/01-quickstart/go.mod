@@ -1,7 +1,7 @@
 module quickstart
 
-go 1.24.0
+go 1.25.6
 
-require github.com/marwan562/fintech-ecosystem v0.0.0
+require github.com/sapliy/fintech-sdk-go v0.0.0-20260202051550-899a2e668cb4
 
-replace github.com/marwan562/fintech-ecosystem => ../../..
+replace github.com/marwan562/fintech-ecosystem => ../../../../fintech-sdk-go

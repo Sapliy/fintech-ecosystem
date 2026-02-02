@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package payments;
+
+option go_package = "github.com/marwan562/fintech-ecosystem/proto/payments";
+
+import "google/api/annotations.proto";
+
+service PaymentService {
+  rpc CreatePaymentIntent(CreatePaymentIntentRequest) returns (PaymentIntent) {
+    option (google.api.http) = {
+      post: "/v1/payments/intents"
+      body: "*"
+    };
+  }
+
+  rpc ConfirmPaymentIntent(ConfirmPaymentIntentRequest) returns (PaymentIntent) {
+    option (google.api.http) = {
+      post: "/v1/payments/intents/{id}/confirm"
+      body: "*"
+    };
+  }
+
+  rpc RefundPaymentIntent(RefundPaymentIntentRequest) returns (PaymentIntent) {
+    option (google.api.http) = {
+      post: "/v1/payments/intents/{id}/refund"
+      body: "*"
+    };
+  }
+}
+
+message CreatePaymentIntentRequest {
+  int64 amount = 1;
+  string currency = 2;
+  string description = 3;
+  int64 application_fee_amount = 4;
+  string on_behalf_of = 5;
+}
+
+message ConfirmPaymentIntentRequest {
+  string id = 1;
+  string payment_method_id = 2;
+}
+
+message RefundPaymentIntentRequest {
+  string id = 1;
+}
+
+message PaymentIntent {
+  string id = 1;
+  int64 amount = 2;
+  string currency = 3;
+  string status = 4;
+  string description = 5;
+  string user_id = 6;
+  int64 application_fee_amount = 7;
+  string on_behalf_of = 8;
+  string created_at = 9;
+}

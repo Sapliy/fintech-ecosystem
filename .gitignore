@@ -12,7 +12,7 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+/vendor/
 
 # IDEs
 .vscode/
@@ -32,3 +32,15 @@ billing-service
 connect-service
 wallet-service
 bin/
+
+# local dependencies
+node_modules/
+vendor/
+
+# package manager
+.pnp
+.pnp.js
+
+# build
+build/
+dist/

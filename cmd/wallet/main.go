@@ -71,8 +71,8 @@ func main() {
 	promHandler := monitoring.PrometheusMiddleware(otelHandler)
 
 	go func() {
-		log.Println("Wallet service HTTP starting on :8084")
-		if err := http.ListenAndServe(":8084", promHandler); err != nil {
+		log.Println("Wallet service HTTP starting on :8085")
+		if err := http.ListenAndServe(":8085", promHandler); err != nil {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	}()
