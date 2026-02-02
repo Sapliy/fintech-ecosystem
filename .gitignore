@@ -1,32 +1,34 @@
-.env
-.gocache
-.gotmp
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-/vendor/
-/bin/
+# Test binary, built with `go test -c`
+*.test
 
-# Root binaries
-/payments
-/gateway
-/fraud
-/ledger
-/auth
-/notifications
-/micro
+# Output of the go coverage tool, specifically when used with Litmus
+*.out
 
-# SDKs
-# Node
-/examples/node/01-quickstart/node_modules
-/examples/node/01-quickstart/yarn-cache
-/examples/node/01-quickstart/dist
-/sdks/node/node_modules
-/sdks/node/yarn-cache
-/sdks/node/dist
+# Dependency directories (remove the comment below to include it)
+# vendor/
 
-# Python
-/examples/python/01-quickstart/venv
-/sdks/python/venv
+# IDEs
+.vscode/
+.idea/
+.DS_Store
 
-# Go
-/examples/go/01-quickstart/vendor
-/sdks/go/vendor
+# Built binaries
+fintech-cli
+fintech-ecosystem
+auth-service
+ledger-service
+payment-service
+gateway
+fraud-service
+notification-service
+billing-service
+connect-service
+wallet-service
+bin/
