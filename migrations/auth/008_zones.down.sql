@@ -1,0 +1,3 @@
+ALTER TABLE api_keys DROP COLUMN mode;
+ALTER TABLE api_keys DROP COLUMN zone_id;
+DROP TABLE IF EXISTS zones;
