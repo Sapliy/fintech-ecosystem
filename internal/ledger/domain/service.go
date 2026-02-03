@@ -137,3 +137,10 @@ func (s *LedgerService) RecordTransaction(ctx context.Context, req TransactionRe
 
 	return txCtx.Commit()
 }
+func (s *LedgerService) BulkRecordTransactions(ctx context.Context, requests []TransactionRequest, zoneID, mode string) ([]error, error) {
+	errs := make([]error, len(requests))
+	for i, req := range requests {
+		errs[i] = s.RecordTransaction(ctx, req, zoneID, mode)
+	}
+	return errs, nil
+}

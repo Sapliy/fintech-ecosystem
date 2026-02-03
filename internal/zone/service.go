@@ -11,11 +11,12 @@ import (
 )
 
 type Service struct {
-	repo domain.Repository
+	repo      domain.Repository
+	providers domain.TemplateProviders
 }
 
-func NewService(repo domain.Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo domain.Repository, providers domain.TemplateProviders) *Service {
+	return &Service{repo: repo, providers: providers}
 }
 
 func (s *Service) CreateZone(ctx context.Context, params domain.CreateZoneParams) (*domain.Zone, error) {
@@ -42,6 +43,16 @@ func (s *Service) CreateZone(ctx context.Context, params domain.CreateZoneParams
 
 	if err := s.repo.Create(ctx, zone); err != nil {
 		return nil, fmt.Errorf("failed to create zone: %w", err)
+	}
+
+	// Apply template if specified
+	if params.TemplateName != "" {
+		if t, ok := domain.GetTemplate(params.TemplateName); ok {
+			if err := t.Apply(ctx, zone, s.providers); err != nil {
+				// We log the error but don't fail zone creation
+				fmt.Printf("Warning: Failed to apply template %s: %v\n", params.TemplateName, err)
+			}
+		}
 	}
 
 	return zone, nil

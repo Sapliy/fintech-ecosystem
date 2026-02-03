@@ -14,9 +14,10 @@ type ZoneHandler struct {
 }
 
 type CreateZoneRequest struct {
-	OrgID string `json:"org_id"`
-	Name  string `json:"name"`
-	Mode  string `json:"mode"` // "test" or "live"
+	OrgID        string `json:"org_id"`
+	Name         string `json:"name"`
+	Mode         string `json:"mode"` // "test" or "live"
+	TemplateName string `json:"template_name"`
 }
 
 func (h *ZoneHandler) CreateZone(w http.ResponseWriter, r *http.Request) {
@@ -32,9 +33,10 @@ func (h *ZoneHandler) CreateZone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	z, err := h.service.CreateZone(r.Context(), domain.CreateZoneParams{
-		OrgID: req.OrgID,
-		Name:  req.Name,
-		Mode:  mode,
+		OrgID:        req.OrgID,
+		Name:         req.Name,
+		Mode:         mode,
+		TemplateName: req.TemplateName,
 	})
 	if err != nil {
 		jsonutil.WriteErrorJSON(w, "Failed to create zone")

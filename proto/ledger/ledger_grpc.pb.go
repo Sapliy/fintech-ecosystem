@@ -19,15 +19,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	LedgerService_RecordTransaction_FullMethodName = "/ledger.LedgerService/RecordTransaction"
-	LedgerService_GetAccount_FullMethodName        = "/ledger.LedgerService/GetAccount"
+	LedgerService_BulkRecordTransactions_FullMethodName = "/ledger.LedgerService/BulkRecordTransactions"
+	LedgerService_RecordTransaction_FullMethodName      = "/ledger.LedgerService/RecordTransaction"
+	LedgerService_CreateAccount_FullMethodName          = "/ledger.LedgerService/CreateAccount"
+	LedgerService_GetAccount_FullMethodName             = "/ledger.LedgerService/GetAccount"
 )
 
 // LedgerServiceClient is the client API for LedgerService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LedgerServiceClient interface {
+	BulkRecordTransactions(ctx context.Context, in *BulkRecordRequest, opts ...grpc.CallOption) (*BulkRecordResponse, error)
 	RecordTransaction(ctx context.Context, in *RecordTransactionRequest, opts ...grpc.CallOption) (*RecordTransactionResponse, error)
+	CreateAccount(ctx context.Context, in *CreateAccountRequest, opts ...grpc.CallOption) (*CreateAccountResponse, error)
 	GetAccount(ctx context.Context, in *GetAccountRequest, opts ...grpc.CallOption) (*GetAccountResponse, error)
 }
 
@@ -39,10 +43,30 @@ func NewLedgerServiceClient(cc grpc.ClientConnInterface) LedgerServiceClient {
 	return &ledgerServiceClient{cc}
 }
 
+func (c *ledgerServiceClient) BulkRecordTransactions(ctx context.Context, in *BulkRecordRequest, opts ...grpc.CallOption) (*BulkRecordResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BulkRecordResponse)
+	err := c.cc.Invoke(ctx, LedgerService_BulkRecordTransactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ledgerServiceClient) RecordTransaction(ctx context.Context, in *RecordTransactionRequest, opts ...grpc.CallOption) (*RecordTransactionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RecordTransactionResponse)
 	err := c.cc.Invoke(ctx, LedgerService_RecordTransaction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ledgerServiceClient) CreateAccount(ctx context.Context, in *CreateAccountRequest, opts ...grpc.CallOption) (*CreateAccountResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateAccountResponse)
+	err := c.cc.Invoke(ctx, LedgerService_CreateAccount_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +87,9 @@ func (c *ledgerServiceClient) GetAccount(ctx context.Context, in *GetAccountRequ
 // All implementations must embed UnimplementedLedgerServiceServer
 // for forward compatibility.
 type LedgerServiceServer interface {
+	BulkRecordTransactions(context.Context, *BulkRecordRequest) (*BulkRecordResponse, error)
 	RecordTransaction(context.Context, *RecordTransactionRequest) (*RecordTransactionResponse, error)
+	CreateAccount(context.Context, *CreateAccountRequest) (*CreateAccountResponse, error)
 	GetAccount(context.Context, *GetAccountRequest) (*GetAccountResponse, error)
 	mustEmbedUnimplementedLedgerServiceServer()
 }
@@ -75,8 +101,14 @@ type LedgerServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedLedgerServiceServer struct{}
 
+func (UnimplementedLedgerServiceServer) BulkRecordTransactions(context.Context, *BulkRecordRequest) (*BulkRecordResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BulkRecordTransactions not implemented")
+}
 func (UnimplementedLedgerServiceServer) RecordTransaction(context.Context, *RecordTransactionRequest) (*RecordTransactionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RecordTransaction not implemented")
+}
+func (UnimplementedLedgerServiceServer) CreateAccount(context.Context, *CreateAccountRequest) (*CreateAccountResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateAccount not implemented")
 }
 func (UnimplementedLedgerServiceServer) GetAccount(context.Context, *GetAccountRequest) (*GetAccountResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAccount not implemented")
@@ -102,6 +134,24 @@ func RegisterLedgerServiceServer(s grpc.ServiceRegistrar, srv LedgerServiceServe
 	s.RegisterService(&LedgerService_ServiceDesc, srv)
 }
 
+func _LedgerService_BulkRecordTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BulkRecordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LedgerServiceServer).BulkRecordTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LedgerService_BulkRecordTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LedgerServiceServer).BulkRecordTransactions(ctx, req.(*BulkRecordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _LedgerService_RecordTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RecordTransactionRequest)
 	if err := dec(in); err != nil {
@@ -116,6 +166,24 @@ func _LedgerService_RecordTransaction_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LedgerServiceServer).RecordTransaction(ctx, req.(*RecordTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LedgerService_CreateAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LedgerServiceServer).CreateAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LedgerService_CreateAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LedgerServiceServer).CreateAccount(ctx, req.(*CreateAccountRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -146,8 +214,16 @@ var LedgerService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*LedgerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "BulkRecordTransactions",
+			Handler:    _LedgerService_BulkRecordTransactions_Handler,
+		},
+		{
 			MethodName: "RecordTransaction",
 			Handler:    _LedgerService_RecordTransaction_Handler,
+		},
+		{
+			MethodName: "CreateAccount",
+			Handler:    _LedgerService_CreateAccount_Handler,
 		},
 		{
 			MethodName: "GetAccount",

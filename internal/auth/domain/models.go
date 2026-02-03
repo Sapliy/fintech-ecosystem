@@ -125,6 +125,7 @@ type AuditLog struct {
 const (
 	RoleOwner     = "owner"
 	RoleAdmin     = "admin"
+	RoleFinance   = "finance"
 	RoleMember    = "member"
 	RoleDeveloper = "developer"
 )

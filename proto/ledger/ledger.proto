@@ -8,17 +8,45 @@ import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 
 service LedgerService {
+  rpc BulkRecordTransactions(BulkRecordRequest) returns (BulkRecordResponse) {
+    option (google.api.http) = {
+      post: "/v1/ledger/bulk-transactions"
+      body: "*"
+    };
+  }
+
   rpc RecordTransaction(RecordTransactionRequest) returns (RecordTransactionResponse) {
     option (google.api.http) = {
       post: "/v1/ledger/transactions"
       body: "*"
     };
   }
+
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse) {
+    option (google.api.http) = {
+      post: "/v1/ledger/accounts"
+      body: "*"
+    };
+  }
+
   rpc GetAccount(GetAccountRequest) returns (GetAccountResponse) {
     option (google.api.http) = {
       get: "/v1/ledger/accounts/{account_id}"
     };
   }
+}
+
+message CreateAccountRequest {
+  string name = 1;
+  string type = 2; // e.g. "asset", "liability", "revenue", "expense"
+  string currency = 3;
+  string zone_id = 4;
+  string mode = 5;
+}
+
+message CreateAccountResponse {
+  string account_id = 1;
+  string status = 2;
 }
 
 message RecordTransactionRequest {
@@ -34,6 +62,14 @@ message RecordTransactionRequest {
 message RecordTransactionResponse {
   string transaction_id = 1;
   string status = 2;
+}
+
+message BulkRecordRequest {
+  repeated RecordTransactionRequest transactions = 1;
+}
+
+message BulkRecordResponse {
+  repeated RecordTransactionResponse responses = 1;
 }
 
 message GetAccountRequest {

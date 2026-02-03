@@ -6,7 +6,6 @@ import (
 
 	"github.com/marwan562/fintech-ecosystem/internal/ledger/domain"
 	pb "github.com/marwan562/fintech-ecosystem/proto/ledger"
-
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -49,6 +48,61 @@ func (s *LedgerGRPCServer) RecordTransaction(ctx context.Context, req *pb.Record
 	}, nil
 }
 
+func (s *LedgerGRPCServer) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
+	acc, err := s.service.CreateAccount(ctx, req.Name, domain.AccountType(req.Type), req.Currency, nil, req.ZoneId, req.Mode)
+	if err != nil {
+		log.Printf("GRPC CreateAccount error: %v", err)
+		return nil, err
+	}
+
+	return &pb.CreateAccountResponse{
+		AccountId: acc.ID,
+		Status:    "created",
+	}, nil
+}
+
+func (s *LedgerGRPCServer) BulkRecordTransactions(ctx context.Context, req *pb.BulkRecordRequest) (*pb.BulkRecordResponse, error) {
+	var txRequests []domain.TransactionRequest
+	for _, tr := range req.Transactions {
+		txRequests = append(txRequests, domain.TransactionRequest{
+			ReferenceID: tr.ReferenceId,
+			Description: tr.Description,
+			Entries: []domain.EntryRequest{
+				{AccountID: tr.AccountId, Amount: tr.Amount, Direction: "credit"},
+				{AccountID: "system_balancing", Amount: -tr.Amount, Direction: "debit"},
+			},
+		})
+	}
+
+	// Assuming the zone and mode from the first transaction for simplicity,
+	// or we should handle it per transaction.
+	var zoneID, mode string
+	if len(req.Transactions) > 0 {
+		zoneID = req.Transactions[0].ZoneId
+		mode = req.Transactions[0].Mode
+	}
+
+	resErrs, err := s.service.BulkRecordTransactions(ctx, txRequests, zoneID, mode)
+	if err != nil {
+		return nil, err
+	}
+
+	var responses []*pb.RecordTransactionResponse
+	for _, e := range resErrs {
+		status := "recorded"
+		if e != nil {
+			status = "error: " + e.Error()
+		}
+		responses = append(responses, &pb.RecordTransactionResponse{
+			Status: status,
+		})
+	}
+
+	return &pb.BulkRecordResponse{
+		Responses: responses,
+	}, nil
+}
+
 func (s *LedgerGRPCServer) GetAccount(ctx context.Context, req *pb.GetAccountRequest) (*pb.GetAccountResponse, error) {
 	acc, err := s.service.GetAccount(ctx, req.AccountId)
 	if err != nil {
@@ -56,13 +110,10 @@ func (s *LedgerGRPCServer) GetAccount(ctx context.Context, req *pb.GetAccountReq
 		return nil, err
 	}
 
-	if acc == nil {
-		return nil, nil
-	}
-
 	return &pb.GetAccountResponse{
 		AccountId: acc.ID,
 		Balance:   acc.Balance,
+		Currency:  acc.Currency,
 		CreatedAt: timestamppb.New(acc.CreatedAt),
 	}, nil
 }

@@ -108,6 +108,7 @@ func main() {
 	})
 
 	mux.HandleFunc("/transactions", handler.RecordTransaction)
+	mux.HandleFunc("/bulk-transactions", handler.BulkRecordTransactions)
 
 	log.Println("Ledger service HTTP starting on :8083")
 

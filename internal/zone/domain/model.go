@@ -22,9 +22,10 @@ type Zone struct {
 }
 
 type CreateZoneParams struct {
-	OrgID string
-	Name  string
-	Mode  Mode
+	OrgID        string
+	Name         string
+	Mode         Mode
+	TemplateName string
 }
 
 type Repository interface {

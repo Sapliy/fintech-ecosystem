@@ -88,3 +88,30 @@ func (h *LedgerHandler) RecordTransaction(w http.ResponseWriter, r *http.Request
 
 	jsonutil.WriteJSON(w, http.StatusCreated, map[string]string{"status": "recorded"})
 }
+func (h *LedgerHandler) BulkRecordTransactions(w http.ResponseWriter, r *http.Request) {
+	var reqs []domain.TransactionRequest
+	if err := json.NewDecoder(r.Body).Decode(&reqs); err != nil {
+		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		return
+	}
+
+	zoneID := r.Header.Get("X-Zone-ID")
+	mode := r.Header.Get("X-Zone-Mode")
+
+	errs, err := h.service.BulkRecordTransactions(r.Context(), reqs, zoneID, mode)
+	if err != nil {
+		jsonutil.WriteErrorJSON(w, "Internal server error: "+err.Error())
+		return
+	}
+
+	results := make([]map[string]string, len(errs))
+	for i, e := range errs {
+		if e != nil {
+			results[i] = map[string]string{"status": "error", "message": e.Error()}
+		} else {
+			results[i] = map[string]string{"status": "recorded"}
+		}
+	}
+
+	jsonutil.WriteJSON(w, http.StatusMultiStatus, results)
+}

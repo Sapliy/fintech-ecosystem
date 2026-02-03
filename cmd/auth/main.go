@@ -9,15 +9,19 @@ import (
 
 	"github.com/marwan562/fintech-ecosystem/internal/auth/domain"
 	"github.com/marwan562/fintech-ecosystem/internal/auth/infrastructure"
-	zoneDomain "github.com/marwan562/fintech-ecosystem/internal/zone"
+	flowDomain "github.com/marwan562/fintech-ecosystem/internal/flow/domain"
+	flowInfra "github.com/marwan562/fintech-ecosystem/internal/flow/infrastructure"
+	zone "github.com/marwan562/fintech-ecosystem/internal/zone"
+	zoneDomain "github.com/marwan562/fintech-ecosystem/internal/zone/domain"
 	zoneInfra "github.com/marwan562/fintech-ecosystem/internal/zone/infrastructure"
 	"github.com/marwan562/fintech-ecosystem/pkg/database"
 	"github.com/marwan562/fintech-ecosystem/pkg/jsonutil"
+	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
 	"github.com/marwan562/fintech-ecosystem/pkg/observability"
 	pb "github.com/marwan562/fintech-ecosystem/proto/auth"
+	ledgerPb "github.com/marwan562/fintech-ecosystem/proto/ledger"
+	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-
-	"github.com/marwan562/fintech-ecosystem/pkg/monitoring"
 	"google.golang.org/grpc"
 )
 
@@ -53,11 +57,52 @@ func main() {
 		log.Println("Warning: API_KEY_HMAC_SECRET not set, using default for dev")
 	}
 
+	// Initialize Redis
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	rdb := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		log.Printf("Warning: Redis connection failed in Auth: %v", err)
+	}
+
 	sqlRepo := infrastructure.NewSQLRepository(db)
-	authService := domain.NewAuthService(sqlRepo)
+	cachedRepo := infrastructure.NewCachedRepository(sqlRepo, rdb)
+	authService := domain.NewAuthService(cachedRepo)
 
 	zoneRepo := zoneInfra.NewSQLRepository(db)
-	zoneService := zoneDomain.NewService(zoneRepo)
+	flowRepo := flowInfra.NewSQLRepository(db)
+
+	providers := zoneDomain.TemplateProviders{
+		CreateLedgerAccount: func(ctx context.Context, name, accType, currency string, zoneID, mode string) error {
+			conn, err := grpc.NewClient("localhost:50052", grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+			client := ledgerPb.NewLedgerServiceClient(conn)
+			_, err = client.CreateAccount(ctx, &ledgerPb.CreateAccountRequest{
+				Name:     name,
+				Type:     accType,
+				Currency: currency,
+				ZoneId:   zoneID,
+				Mode:     mode,
+			})
+			return err
+		},
+		CreateFlow: func(ctx context.Context, zoneID string, name string, nodes interface{}, edges interface{}) error {
+			// Basic template flow
+			return flowRepo.CreateFlow(ctx, &flowDomain.Flow{
+				ZoneID:  zoneID,
+				Name:    name,
+				Enabled: true,
+			})
+		},
+	}
+	zoneService := zone.NewService(zoneRepo, providers)
 
 	handler := &AuthHandler{service: authService, hmacSecret: hmacSecret}
 	zoneHandler := &ZoneHandler{service: zoneService}
@@ -106,6 +151,7 @@ func main() {
 	mux.HandleFunc("/oauth/introspect", handler.TokenIntrospectionHandler)
 	// Internal endpoint for Gateway Validation
 	mux.HandleFunc("/validate_key", handler.ValidateAPIKey)
+	mux.HandleFunc("/events/trigger", handler.TriggerEvent)
 	mux.HandleFunc("/sso/callback", handler.SSOCallback)
 
 	// Zone Management
@@ -123,6 +169,30 @@ func main() {
 			jsonutil.WriteErrorJSON(w, "Method not allowed")
 		}
 	})
+
+	flowRunner := flowDomain.NewFlowRunner(flowRepo)
+	flowHandler := &FlowHandler{repo: flowRepo, runner: flowRunner}
+
+	// ... rest of main ...
+	mux.HandleFunc("/flows", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			flowHandler.CreateFlow(w, r)
+		case http.MethodGet:
+			if r.URL.Query().Get("id") != "" {
+				flowHandler.GetFlow(w, r)
+			} else {
+				flowHandler.ListFlows(w, r)
+			}
+		case http.MethodPut:
+			flowHandler.UpdateFlow(w, r)
+		default:
+			jsonutil.WriteErrorJSON(w, "Method not allowed")
+		}
+	})
+
+	mux.HandleFunc("/flows/executions", flowHandler.GetExecution)
+	mux.HandleFunc("/flows/resume", flowHandler.ResumeExecution)
 
 	log.Println("Auth service HTTP starting on :8081")
 

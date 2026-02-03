@@ -165,6 +165,22 @@ services:
     networks:
       - microservices-net
 
+  flow-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: flow-runner
+    container_name: microservices_flow_runner
+    environment:
+      - DB_DSN=postgres://user:password@postgres:5432/microservices?sslmode=disable
+      - KAFKA_BROKERS=redpanda:29092
+    depends_on:
+      - redpanda
+      - postgres
+    networks:
+      - microservices-net
+
   notifications:
     build:
       context: .
