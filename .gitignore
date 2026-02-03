@@ -21,6 +21,7 @@
 
 # Built binaries
 fintech-cli
+sapliy-cli
 fintech-ecosystem
 auth-service
 ledger-service

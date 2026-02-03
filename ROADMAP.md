@@ -88,7 +88,7 @@ Organization → Zone → Event → Flow → Action
 ### Ecosystem Packages (v4.x)
 - [ ] **@sapliyio/fintech-ui** — React components
 - [ ] **fintech-testing** — Test utilities
-- [ ] **fintech-cli v2** — Enhanced CLI
+- [ ] **sapliy-cli v2** — Enhanced CLI
 - [ ] **fintech-examples** — Sample apps
 - [ ] **Documentation Site** — VitePress docs
 
