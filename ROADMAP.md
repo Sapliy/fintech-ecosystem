@@ -86,11 +86,11 @@ Organization → Zone → Event → Flow → Action
 - [x] **Batch Operations** — Bulk APIs for Zone, Flow, and Ledger
 
 ### Ecosystem Packages (v4.x)
-- [ ] **@sapliyio/fintech-ui** — React components
-- [ ] **fintech-testing** — Test utilities
-- [ ] **sapliy-cli v2** — Enhanced CLI
-- [ ] **fintech-examples** — Sample apps
-- [ ] **Documentation Site** — VitePress docs
+- [x] **@sapliyio/fintech-ui** — React components
+- [x] **fintech-testing** — Test utilities
+- [x] **sapliy-cli v2** — Enhanced CLI
+- [x] **fintech-examples** — Sample apps
+- [x] **Documentation Site** — VitePress docs
 
 ---
 
@@ -107,15 +107,15 @@ The next major evolution — transforming from a payment processor into a full a
 - [ ] **Zone Templates** — Quick-start configurations
 
 #### Flow Engine
-- [/] **Visual Flow Builder** — Drag-and-drop UI (In progress)
-- [ ] **Event Triggers** — SDK, webhooks, schedule
-- [ ] **Logic Nodes** — Conditions, filters, approvals
-- [ ] **Action Nodes** — Webhooks, notifications, audit
+- [x] **Visual Flow Builder** — Drag-and-drop UI
+- [x] **Event Triggers** — SDK, webhooks, schedule
+- [x] **Logic Nodes** — Conditions, filters, approvals
+- [x] **Action Nodes** — Webhooks, notifications, audit
 
 #### Policy Engine
-- [ ] **Phase 1**: Hardcoded policies (admin, finance roles)
-- [ ] **Phase 2**: JSON policy language
-- [ ] **Phase 3**: Full OPA-style engine
+- [x] **Phase 1**: Hardcoded policies (admin, finance roles)
+- [x] **Phase 2**: JSON policy language
+- [x] **Phase 3**: Full OPA-style engine
 
 #### Developer Tools
 - [x] **CLI Enhancements** — Zone switching, event triggers
