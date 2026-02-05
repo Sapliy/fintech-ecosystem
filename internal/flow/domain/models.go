@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -75,6 +76,15 @@ type ExecutionStep struct {
 	Error  string          `json:"error,omitempty"`
 }
 
+// Event represents a business event that can trigger flows
+type Event struct {
+	ID        string          `json:"id"`
+	Type      string          `json:"type"`
+	ZoneID    string          `json:"zone_id"`
+	Data      json.RawMessage `json:"data"`
+	CreatedAt time.Time       `json:"created_at"`
+}
+
 type Repository interface {
 	CreateFlow(ctx context.Context, flow *Flow) error
 	GetFlow(ctx context.Context, id string) (*Flow, error)
@@ -84,5 +94,17 @@ type Repository interface {
 	CreateExecution(ctx context.Context, exec *FlowExecution) error
 	UpdateExecution(ctx context.Context, exec *FlowExecution) error
 	GetExecution(ctx context.Context, id string) (*FlowExecution, error)
+
+	// Event methods for replay
+	CreateEvent(ctx context.Context, event *Event) error
+	GetPastEvents(ctx context.Context, zoneID string, limit, offset int) ([]*Event, error)
+	GetEventByID(ctx context.Context, id string) (*Event, error)
+
 	BulkUpdateFlowsEnabled(ctx context.Context, ids []string, enabled bool) error
 }
+
+// Errors
+var (
+	ErrFlowNotFound      = errors.New("flow not found")
+	ErrExecutionNotFound = errors.New("execution not found")
+)

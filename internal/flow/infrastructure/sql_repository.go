@@ -110,3 +110,42 @@ func (r *SQLRepository) BulkUpdateFlowsEnabled(ctx context.Context, ids []string
 	}
 	return nil
 }
+
+// Event methods
+
+func (r *SQLRepository) CreateEvent(ctx context.Context, event *domain.Event) error {
+	_, err := r.db.ExecContext(ctx,
+		"INSERT INTO events (id, type, zone_id, data, created_at) VALUES ($1, $2, $3, $4, $5)",
+		event.ID, event.Type, event.ZoneID, event.Data, event.CreatedAt)
+	return err
+}
+
+func (r *SQLRepository) GetPastEvents(ctx context.Context, zoneID string, limit, offset int) ([]*domain.Event, error) {
+	rows, err := r.db.QueryContext(ctx,
+		"SELECT id, type, zone_id, data, created_at FROM events WHERE zone_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+		zoneID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []*domain.Event
+	for rows.Next() {
+		var e domain.Event
+		if err := rows.Scan(&e.ID, &e.Type, &e.ZoneID, &e.Data, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		events = append(events, &e)
+	}
+	return events, nil
+}
+
+func (r *SQLRepository) GetEventByID(ctx context.Context, id string) (*domain.Event, error) {
+	row := r.db.QueryRowContext(ctx, "SELECT id, type, zone_id, data, created_at FROM events WHERE id = $1", id)
+
+	var e domain.Event
+	if err := row.Scan(&e.ID, &e.Type, &e.ZoneID, &e.Data, &e.CreatedAt); err != nil {
+		return nil, err
+	}
+	return &e, nil
+}

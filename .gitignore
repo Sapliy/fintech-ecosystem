@@ -20,6 +20,9 @@
 .DS_Store
 
 # Built binaries
+auth
+flow-runner
+flow-service
 fintech-cli
 sapliy-cli
 fintech-ecosystem

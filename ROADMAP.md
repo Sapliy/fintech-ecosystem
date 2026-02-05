@@ -104,7 +104,7 @@ The next major evolution — transforming from a payment processor into a full a
 - [x] **Zone Management API** — CRUD for zones
 - [x] **Test/Live Mode Isolation** — Separate keys, logs, flows
 - [x] **Zone-Scoped Events** — Events bound to zones
-- [ ] **Zone Templates** — Quick-start configurations
+- [x] **Zone Templates** — Quick-start configurations
 
 #### Flow Engine
 - [x] **Visual Flow Builder** — Drag-and-drop UI
@@ -119,7 +119,7 @@ The next major evolution — transforming from a payment processor into a full a
 
 #### Developer Tools
 - [x] **CLI Enhancements** — Zone switching, event triggers
-- [ ] **Debug Mode** — Real-time flow inspection
+- [x] **Debug Mode** — Real-time flow inspection
 - [ ] **Webhook Replay** — Re-trigger past events
 
 ---

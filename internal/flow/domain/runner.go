@@ -15,15 +15,26 @@ type NodeHandler interface {
 type FlowRunner struct {
 	repo     Repository
 	handlers map[NodeType]NodeHandler
+	hooks    []ExecutionHook
+}
+
+type ExecutionHook interface {
+	BeforeNode(ctx context.Context, node *Node, input map[string]interface{})
+	AfterNode(ctx context.Context, node *Node, output map[string]interface{}, err error)
 }
 
 func NewFlowRunner(repo Repository) *FlowRunner {
 	r := &FlowRunner{
 		repo:     repo,
 		handlers: make(map[NodeType]NodeHandler),
+		hooks:    make([]ExecutionHook, 0),
 	}
 	r.registerDefaultHandlers()
 	return r
+}
+
+func (r *FlowRunner) AddHook(hook ExecutionHook) {
+	r.hooks = append(r.hooks, hook)
 }
 
 func (r *FlowRunner) registerDefaultHandlers() {
@@ -77,11 +88,19 @@ func (r *FlowRunner) executeNode(ctx context.Context, flow *Flow, node *Node, in
 	var output map[string]interface{}
 	var err error
 
+	for _, hook := range r.hooks {
+		hook.BeforeNode(ctx, node, input)
+	}
+
 	handler, ok := r.handlers[node.Type]
 	if ok {
 		output, err = handler.Execute(ctx, node, input)
 	} else {
 		output = input
+	}
+
+	for _, hook := range r.hooks {
+		hook.AfterNode(ctx, node, output, err)
 	}
 
 	if err != nil {
@@ -194,6 +213,11 @@ func (r *FlowRunner) Resume(ctx context.Context, execID string, overrides map[st
 	}
 
 	return r.repo.UpdateExecution(ctx, exec)
+}
+
+// GetHandler returns the handler for a specific node type
+func (r *FlowRunner) GetHandler(nodeType NodeType) NodeHandler {
+	return r.handlers[nodeType]
 }
 
 // --- Specific Handlers ---

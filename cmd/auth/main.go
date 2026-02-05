@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sapliy/fintech-ecosystem/internal/auth/domain"
 	"github.com/sapliy/fintech-ecosystem/internal/auth/infrastructure"
+	"github.com/sapliy/fintech-ecosystem/internal/flow"
 	flowDomain "github.com/sapliy/fintech-ecosystem/internal/flow/domain"
 	flowInfra "github.com/sapliy/fintech-ecosystem/internal/flow/infrastructure"
 	zone "github.com/sapliy/fintech-ecosystem/internal/zone"
@@ -173,7 +174,9 @@ func main() {
 	})
 
 	flowRunner := flowDomain.NewFlowRunner(flowRepo)
+	debugService := flow.NewDebugService(flowRepo)
 	flowHandler := &FlowHandler{repo: flowRepo, runner: flowRunner}
+	debugHandler := NewDebugHandler(debugService)
 
 	// ... rest of main ...
 	mux.HandleFunc("/flows", func(w http.ResponseWriter, r *http.Request) {
@@ -218,6 +221,37 @@ func main() {
 			jsonutil.WriteErrorJSON(w, "Method not allowed")
 		}
 	})
+
+	// Debug Mode endpoints
+	mux.HandleFunc("/debug/sessions", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			debugHandler.StartDebugSession(w, r)
+		case http.MethodGet:
+			if r.URL.Query().Get("session_id") != "" {
+				debugHandler.GetDebugSession(w, r)
+			} else {
+				debugHandler.GetDebugEvents(w, r)
+			}
+		default:
+			jsonutil.WriteErrorJSON(w, "Method not allowed")
+		}
+	})
+	mux.HandleFunc("/debug/sessions/end", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			debugHandler.EndDebugSession(w, r)
+		} else {
+			jsonutil.WriteErrorJSON(w, "Method not allowed")
+		}
+	})
+	mux.HandleFunc("/debug/execute", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			debugHandler.ExecuteFlowWithDebug(w, r)
+		} else {
+			jsonutil.WriteErrorJSON(w, "Method not allowed")
+		}
+	})
+	mux.HandleFunc("/debug/ws", debugHandler.WebSocketDebug)
 
 	log.Println("Auth service HTTP starting on :8081")
 
