@@ -29,6 +29,20 @@ services:
     networks:
       - microservices-net
 
+  ledger_db:
+    image: postgres:15-alpine
+    container_name: microservices_ledger_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ledger
+    ports:
+      - "5435:5432"
+    volumes:
+      - ledger_data:/var/lib/postgresql/data
+    networks:
+      - microservices-net
+
   redis:
     image: redis:7-alpine
     container_name: microservices_redis
