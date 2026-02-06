@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -114,4 +115,42 @@ func (h *LedgerHandler) BulkRecordTransactions(w http.ResponseWriter, r *http.Re
 	}
 
 	jsonutil.WriteJSON(w, http.StatusMultiStatus, results)
+}
+
+func (h *LedgerHandler) ListTransactions(w http.ResponseWriter, r *http.Request) {
+	zoneID := r.URL.Query().Get("zone")
+	limitStr := r.URL.Query().Get("limit")
+	limit := 50
+	if limitStr != "" {
+		fmt.Sscanf(limitStr, "%d", &limit)
+	}
+
+	txs, err := h.service.ListTransactions(r.Context(), zoneID, limit)
+	if err != nil {
+		jsonutil.WriteErrorJSON(w, "Failed to list transactions")
+		return
+	}
+
+	jsonutil.WriteJSON(w, http.StatusOK, txs)
+}
+
+func (h *LedgerHandler) GetTransaction(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 3 {
+		jsonutil.WriteErrorJSON(w, "Invalid URL")
+		return
+	}
+	id := parts[len(parts)-1]
+
+	tx, err := h.service.GetTransaction(r.Context(), id)
+	if err != nil {
+		jsonutil.WriteErrorJSON(w, "Error retrieving transaction")
+		return
+	}
+	if tx == nil {
+		jsonutil.WriteErrorJSON(w, "Transaction not found")
+		return
+	}
+
+	jsonutil.WriteJSON(w, http.StatusOK, tx)
 }

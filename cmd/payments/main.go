@@ -171,7 +171,13 @@ func main() {
 	// Register Handlers
 	// Gateway forwards /payments/* -> /*
 	// So /payments/payment_intents -> /payment_intents
-	mux.HandleFunc("/payment_intents", handler.IdempotencyMiddleware(handler.CreatePaymentIntent))
+	mux.HandleFunc("/payment_intents", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handler.ListPaymentIntents(w, r)
+			return
+		}
+		handler.IdempotencyMiddleware(handler.CreatePaymentIntent)(w, r)
+	})
 
 	// For /confirm, we need to match the path prefix because of the ID parameter
 	// /payment_intents/{id}/confirm

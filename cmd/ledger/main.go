@@ -123,7 +123,23 @@ func main() {
 		jsonutil.WriteErrorJSON(w, "Not Found")
 	})
 
-	mux.HandleFunc("/transactions", handler.RecordTransaction)
+	mux.HandleFunc("/transactions", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handler.ListTransactions(w, r)
+			return
+		}
+		handler.RecordTransaction(w, r)
+	})
+
+	// Simple routing for /transactions/{id}
+	mux.HandleFunc("/transactions/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handler.GetTransaction(w, r)
+			return
+		}
+		jsonutil.WriteErrorJSON(w, "Not Found")
+	})
+
 	mux.HandleFunc("/bulk-transactions", handler.BulkRecordTransactions)
 
 	port := ":8083"

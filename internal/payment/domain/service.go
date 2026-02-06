@@ -31,3 +31,10 @@ func (s *PaymentService) GetIdempotencyKey(ctx context.Context, userID, key stri
 func (s *PaymentService) SaveIdempotencyKey(ctx context.Context, userID, key string, statusCode int, body string) error {
 	return s.repo.SaveIdempotencyKey(ctx, userID, key, statusCode, body)
 }
+
+func (s *PaymentService) ListPaymentIntents(ctx context.Context, zoneID string, limit int) ([]PaymentIntent, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	return s.repo.ListPaymentIntents(ctx, zoneID, limit)
+}

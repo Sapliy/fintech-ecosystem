@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24 AS builder
 
 WORKDIR /app
 
@@ -13,25 +13,25 @@ COPY . .
 # Build the specific service
 # Use ARG to pass the service name during build
 ARG SERVICE_NAME
-RUN go build -o main ./cmd/${SERVICE_NAME}
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    go build -o main ./cmd/${SERVICE_NAME}
 
 # Run stage
-FROM alpine:latest
+FROM debian:bookworm-slim
 
 WORKDIR /app
+
+# Install CA certificates for TLS
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy the binary from builder
 COPY --from=builder /app/main .
 
-# Copy any necessary files (like schema.sql if needed, though most services read them from internal path)
-# We might need to copy internal/auth/schema.sql etc.
-# Better to copy the whole internal folder or specify if needed.
-# For simplicity, we can copy the whole app's internal folder if migration logic needs it.
+# Copy any necessary files
 COPY --from=builder /app/internal ./internal
 
 # Expose the service port
-# This will be overridden or specified in docker-compose for each service
-# Auth: 8081, Payments: 8082, Ledger: 8083, Gateway: 8080
 EXPOSE 8080
 
 CMD ["./main"]

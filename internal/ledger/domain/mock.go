@@ -10,6 +10,8 @@ type MockRepository struct {
 	BeginTxFunc              func(ctx context.Context) (TransactionContext, error)
 	GetUnprocessedEventsFunc func(ctx context.Context, limit int) ([]OutboxEvent, error)
 	MarkEventProcessedFunc   func(ctx context.Context, id string) error
+	ListTransactionsFunc     func(ctx context.Context, zoneID string, limit int) ([]TransactionWithEntries, error)
+	GetTransactionFunc       func(ctx context.Context, id string) (*TransactionWithEntries, error)
 }
 
 func (m *MockRepository) CreateAccount(ctx context.Context, acc *Account) error {
@@ -30,6 +32,14 @@ func (m *MockRepository) GetUnprocessedEvents(ctx context.Context, limit int) ([
 
 func (m *MockRepository) MarkEventProcessed(ctx context.Context, id string) error {
 	return m.MarkEventProcessedFunc(ctx, id)
+}
+
+func (m *MockRepository) ListTransactions(ctx context.Context, zoneID string, limit int) ([]TransactionWithEntries, error) {
+	return m.ListTransactionsFunc(ctx, zoneID, limit)
+}
+
+func (m *MockRepository) GetTransaction(ctx context.Context, id string) (*TransactionWithEntries, error) {
+	return m.GetTransactionFunc(ctx, id)
 }
 
 type MockTransactionContext struct {

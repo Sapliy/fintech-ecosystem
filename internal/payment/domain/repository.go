@@ -10,4 +10,5 @@ type Repository interface {
 	UpdateStatus(ctx context.Context, id, status string) error
 	GetIdempotencyKey(ctx context.Context, userID, key string) (*IdempotencyRecord, error)
 	SaveIdempotencyKey(ctx context.Context, userID, key string, statusCode int, body string) error
+	ListPaymentIntents(ctx context.Context, zoneID string, limit int) ([]PaymentIntent, error)
 }

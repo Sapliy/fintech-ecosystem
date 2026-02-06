@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -428,4 +429,20 @@ func (h *PaymentHandler) RefundPaymentIntent(w http.ResponseWriter, r *http.Requ
 	infrastructure.PaymentRequests.WithLabelValues("refund", "success").Inc()
 	intent.Status = "refunded"
 	jsonutil.WriteJSON(w, http.StatusOK, intent)
+}
+func (h *PaymentHandler) ListPaymentIntents(w http.ResponseWriter, r *http.Request) {
+	zoneID := r.URL.Query().Get("zone")
+	limitStr := r.URL.Query().Get("limit")
+	limit := 50
+	if limitStr != "" {
+		fmt.Sscanf(limitStr, "%d", &limit)
+	}
+
+	intents, err := h.service.ListPaymentIntents(r.Context(), zoneID, limit)
+	if err != nil {
+		jsonutil.WriteErrorJSON(w, "Failed to list payment intents")
+		return
+	}
+
+	jsonutil.WriteJSON(w, http.StatusOK, intents)
 }

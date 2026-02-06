@@ -10,6 +10,11 @@ type MockRepository struct {
 	UpdateStatusFunc        func(ctx context.Context, id, status string) error
 	GetIdempotencyKeyFunc   func(ctx context.Context, userID, key string) (*IdempotencyRecord, error)
 	SaveIdempotencyKeyFunc  func(ctx context.Context, userID, key string, statusCode int, body string) error
+	ListPaymentIntentsFunc  func(ctx context.Context, zoneID string, limit int) ([]PaymentIntent, error)
+}
+
+func (m *MockRepository) ListPaymentIntents(ctx context.Context, zoneID string, limit int) ([]PaymentIntent, error) {
+	return m.ListPaymentIntentsFunc(ctx, zoneID, limit)
 }
 
 func (m *MockRepository) CreatePaymentIntent(ctx context.Context, intent *PaymentIntent) error {

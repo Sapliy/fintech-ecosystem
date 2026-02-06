@@ -42,6 +42,7 @@ type GatewayHandler struct {
 	ledgerServiceURL       string
 	walletServiceURL       string
 	billingServiceURL      string
+	eventsServiceURL       string
 	notificationServiceURL string
 	rdb                    *redis.Client
 	upgrader               websocket.Upgrader
@@ -52,13 +53,14 @@ type GatewayHandler struct {
 }
 
 // NewGatewayHandler creates a new instance of GatewayHandler.
-func NewGatewayHandler(auth, payment, ledger, wallet, billing, notification string, rdb *redis.Client, authClient pb.AuthServiceClient, walletClient walletpb.WalletServiceClient, hmacSecret string, logger *observability.Logger) *GatewayHandler {
+func NewGatewayHandler(auth, payment, ledger, wallet, billing, events, notification string, rdb *redis.Client, authClient pb.AuthServiceClient, walletClient walletpb.WalletServiceClient, hmacSecret string, logger *observability.Logger) *GatewayHandler {
 	return &GatewayHandler{
 		authServiceURL:         auth,
 		paymentServiceURL:      payment,
 		ledgerServiceURL:       ledger,
 		walletServiceURL:       wallet,
 		billingServiceURL:      billing,
+		eventsServiceURL:       events,
 		notificationServiceURL: notification,
 		rdb:                    rdb,
 		upgrader: websocket.Upgrader{
@@ -157,11 +159,18 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Protected Endpoints (API Key Required)
 	// Extract Secret Key
 	authHeader := r.Header.Get("Authorization")
-	if !strings.HasPrefix(authHeader, "Bearer sk_") {
+	apiKey := ""
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		apiKey = strings.TrimPrefix(authHeader, "Bearer ")
+	} else {
+		// Fallback to query parameter for WebSockets or simple GETs
+		apiKey = r.URL.Query().Get("api_key")
+	}
+
+	if apiKey == "" || !strings.HasPrefix(apiKey, "sk_") {
 		jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Missing or invalid API Key"})
 		return
 	}
-	apiKey := strings.TrimPrefix(authHeader, "Bearer ")
 
 	// Hash Key
 	keyHash := apikey.HashKey(apiKey, h.hmacSecret)
@@ -206,29 +215,40 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Header.Set("X-Zone-Mode", mode)
 
 	// Route to Service
+	// Handle /v1 prefix by optional stripping
+	p := path
+	if strings.HasPrefix(p, "/v1") {
+		p = strings.TrimPrefix(p, "/v1")
+	}
+
 	switch {
-	case strings.HasPrefix(path, "/payments"):
-		http.StripPrefix("/payments", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	case strings.HasPrefix(p, "/payments"):
+		http.StripPrefix(path[:len(path)-len(p)]+"/payments", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			h.proxyRequest(h.paymentServiceURL, w, r)
 		})).ServeHTTP(w, r)
 
-	case strings.HasPrefix(path, "/ledger"):
-		http.StripPrefix("/ledger", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	case strings.HasPrefix(p, "/ledger"):
+		http.StripPrefix(path[:len(path)-len(p)]+"/ledger", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			h.proxyRequest(h.ledgerServiceURL, w, r)
 		})).ServeHTTP(w, r)
 
-	case strings.HasPrefix(path, "/wallets"):
+	case strings.HasPrefix(p, "/wallets"):
 		h.proxyRequest(h.walletServiceURL, w, r)
 
-	case strings.HasPrefix(path, "/billing"):
-		http.StripPrefix("/billing", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	case strings.HasPrefix(p, "/billing"):
+		http.StripPrefix(path[:len(path)-len(p)]+"/billing", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			h.proxyRequest(h.billingServiceURL, w, r)
 		})).ServeHTTP(w, r)
 
-	case strings.HasPrefix(path, "/webhooks") || strings.HasPrefix(path, "/notifications"):
+	case strings.HasPrefix(p, "/webhooks") || strings.HasPrefix(p, "/notifications"):
 		h.proxyRequest(h.notificationServiceURL, w, r)
 
+	case strings.HasPrefix(p, "/events"):
+		// For events, we don't strip prefix if the target expects /v1
+		h.proxyRequest(h.eventsServiceURL, w, r)
+
 	default:
+		h.logger.Warn("Route not found", "path", path)
 		jsonutil.WriteErrorJSON(w, "Not Found")
 	}
 }
@@ -309,6 +329,11 @@ func main() {
 	notificationURL := os.Getenv("NOTIFICATION_SERVICE_URL")
 	if notificationURL == "" {
 		notificationURL = "http://127.0.0.1:8084"
+	}
+
+	eventsURL := os.Getenv("EVENTS_SERVICE_URL")
+	if eventsURL == "" {
+		eventsURL = "http://127.0.0.1:8089"
 	}
 
 	billingURL := os.Getenv("BILLING_SERVICE_URL")
@@ -392,7 +417,7 @@ func main() {
 		logger.Warn("API_KEY_HMAC_SECRET not set, using default for dev")
 	}
 
-	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, walletURL, billingURL, notificationURL, rdb, authClient, walletClient, hmacSecret, logger)
+	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, walletURL, billingURL, eventsURL, notificationURL, rdb, authClient, walletClient, hmacSecret, logger)
 
 	// Wrap handler with OpenTelemetry and Prometheus
 	otelHandler := otelhttp.NewHandler(gateway, "gateway-request")

@@ -41,6 +41,11 @@ type Transaction struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type TransactionWithEntries struct {
+	Transaction
+	Entries []Entry `json:"entries"`
+}
+
 type Entry struct {
 	ID            string          `json:"id"`
 	TransactionID string          `json:"transaction_id"`

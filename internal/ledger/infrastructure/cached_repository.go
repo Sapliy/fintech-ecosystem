@@ -81,6 +81,14 @@ func (r *CachedRepository) MarkEventProcessed(ctx context.Context, id string) er
 	return r.repo.MarkEventProcessed(ctx, id)
 }
 
+func (r *CachedRepository) ListTransactions(ctx context.Context, zoneID string, limit int) ([]domain.TransactionWithEntries, error) {
+	return r.repo.ListTransactions(ctx, zoneID, limit)
+}
+
+func (r *CachedRepository) GetTransaction(ctx context.Context, id string) (*domain.TransactionWithEntries, error) {
+	return r.repo.GetTransaction(ctx, id)
+}
+
 type cachedTransactionContext struct {
 	domain.TransactionContext
 	redis       *redis.Client

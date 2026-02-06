@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -156,6 +154,7 @@ services:
       - AUTH_SERVICE_URL=http://auth:8081
       - PAYMENT_SERVICE_URL=http://payments:8082
       - LEDGER_SERVICE_URL=http://ledger:8083
+      - EVENTS_SERVICE_URL=http://events:8089
       - API_KEY_HMAC_SECRET=super-secret-pepper-change-me-in-prod
     ports:
       - "8080:8080"
@@ -163,6 +162,22 @@ services:
       - auth
       - payments
       - ledger
+      - redis
+    networks:
+      - microservices-net
+
+  events:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: events
+    container_name: microservices_events
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "8089:8089"
+    depends_on:
       - redis
     networks:
       - microservices-net
@@ -218,7 +233,7 @@ services:
       - KAFKA_BROKERS=redpanda:29092
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
     ports:
-      - "8089:8081" # Map internal 8081 to 8089 to avoid clash if on host
+      - "8091:8081" # Map internal 8081 to 8091 to avoid clash
     depends_on:
       - redpanda
       - rabbitmq
@@ -277,7 +292,7 @@ services:
     image: grafana/grafana:latest
     container_name: microservices_grafana
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_AUTH_ANONYMOUS_ENABLED=true

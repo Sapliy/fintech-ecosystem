@@ -123,3 +123,74 @@ func (c *sqlTxContext) Commit() error {
 func (c *sqlTxContext) Rollback() error {
 	return c.tx.Rollback()
 }
+
+func (r *SQLRepository) ListTransactions(ctx context.Context, zoneID string, limit int) ([]domain.TransactionWithEntries, error) {
+	query := `SELECT id, reference_id, description, zone_id, mode, created_at 
+			  FROM transactions 
+			  WHERE ($1 = '' OR zone_id = $1) 
+			  ORDER BY created_at DESC 
+			  LIMIT $2`
+
+	rows, err := r.db.QueryContext(ctx, query, zoneID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var txs []domain.TransactionWithEntries
+	for rows.Next() {
+		var tx domain.TransactionWithEntries
+		if err := rows.Scan(&tx.ID, &tx.ReferenceID, &tx.Description, &tx.ZoneID, &tx.Mode, &tx.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		// Fetch entries for this transaction
+		entries, err := r.getTransactionEntries(ctx, tx.ID)
+		if err != nil {
+			return nil, err
+		}
+		tx.Entries = entries
+		txs = append(txs, tx)
+	}
+	return txs, nil
+}
+
+func (r *SQLRepository) GetTransaction(ctx context.Context, id string) (*domain.TransactionWithEntries, error) {
+	tx := &domain.TransactionWithEntries{}
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, reference_id, description, zone_id, mode, created_at FROM transactions WHERE id = $1`,
+		id).Scan(&tx.ID, &tx.ReferenceID, &tx.Description, &tx.ZoneID, &tx.Mode, &tx.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	entries, err := r.getTransactionEntries(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	tx.Entries = entries
+	return tx, nil
+}
+
+func (r *SQLRepository) getTransactionEntries(ctx context.Context, txID string) ([]domain.Entry, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, transaction_id, account_id, amount, direction, created_at FROM entries WHERE transaction_id = $1`,
+		txID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []domain.Entry
+	for rows.Next() {
+		var e domain.Entry
+		if err := rows.Scan(&e.ID, &e.TransactionID, &e.AccountID, &e.Amount, &e.Direction, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}

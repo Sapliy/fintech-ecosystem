@@ -10,6 +10,8 @@ type Repository interface {
 	BeginTx(ctx context.Context) (TransactionContext, error)
 	GetUnprocessedEvents(ctx context.Context, limit int) ([]OutboxEvent, error)
 	MarkEventProcessed(ctx context.Context, id string) error
+	ListTransactions(ctx context.Context, zoneID string, limit int) ([]TransactionWithEntries, error)
+	GetTransaction(ctx context.Context, id string) (*TransactionWithEntries, error)
 }
 
 type TransactionContext interface {

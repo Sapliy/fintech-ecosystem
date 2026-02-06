@@ -21,23 +21,26 @@
 .DS_Store
 
 # Built binaries
-auth
-flow-runner
-flow-service
-fintech-cli
-sapliy-cli
-fintech-ecosystem
-auth-service
-ledger-service
-payment-service
-gateway
-fraud-service
-notification-service
-billing-service
-connect-service
-wallet-service
-events-service
-events-srv
+auth/
+payments/
+ledger/
+events/
+flow-runner/
+flow-service/
+fintech-cli/
+sapliy-cli/
+fintech-ecosystem/
+auth-service/
+ledger-service/
+payment-service/
+gateway/
+fraud-service/
+notification-service/
+billing-service/
+connect-service/
+wallet-service/
+events-service/
+events-srv/
 bin/
 
 # local dependencies

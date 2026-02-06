@@ -144,3 +144,14 @@ func (s *LedgerService) BulkRecordTransactions(ctx context.Context, requests []T
 	}
 	return errs, nil
 }
+
+func (s *LedgerService) ListTransactions(ctx context.Context, zoneID string, limit int) ([]TransactionWithEntries, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	return s.repo.ListTransactions(ctx, zoneID, limit)
+}
+
+func (s *LedgerService) GetTransaction(ctx context.Context, id string) (*TransactionWithEntries, error) {
+	return s.repo.GetTransaction(ctx, id)
+}

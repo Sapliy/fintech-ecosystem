@@ -73,3 +73,27 @@ func (r *SQLRepository) SaveIdempotencyKey(ctx context.Context, userID, key stri
 	_, err := r.db.ExecContext(ctx, "INSERT INTO idempotency_keys (user_id, key, response_body, status_code) VALUES ($1, $2, $3, $4)", userID, key, body, statusCode)
 	return err
 }
+
+func (r *SQLRepository) ListPaymentIntents(ctx context.Context, zoneID string, limit int) ([]domain.PaymentIntent, error) {
+	query := `SELECT id, amount, currency, status, description, user_id, application_fee_amount, on_behalf_of, zone_id, mode, created_at 
+			  FROM payment_intents 
+			  WHERE ($1 = '' OR zone_id = $1) 
+			  ORDER BY created_at DESC 
+			  LIMIT $2`
+
+	rows, err := r.db.QueryContext(ctx, query, zoneID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var intents []domain.PaymentIntent
+	for rows.Next() {
+		var intent domain.PaymentIntent
+		if err := rows.Scan(&intent.ID, &intent.Amount, &intent.Currency, &intent.Status, &intent.Description, &intent.UserID, &intent.ApplicationFeeAmount, &intent.OnBehalfOf, &intent.ZoneID, &intent.Mode, &intent.CreatedAt); err != nil {
+			return nil, err
+		}
+		intents = append(intents, intent)
+	}
+	return intents, nil
+}
