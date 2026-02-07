@@ -66,6 +66,16 @@ func (m *MockFlowRepository) GetExecution(ctx context.Context, id string) (*doma
 	return nil, domain.ErrExecutionNotFound
 }
 
+func (m *MockFlowRepository) ListExecutions(ctx context.Context, flowID string, limit, offset int) ([]*domain.FlowExecution, error) {
+	var executions []*domain.FlowExecution
+	for _, exec := range m.executions {
+		if exec.FlowID == flowID {
+			executions = append(executions, exec)
+		}
+	}
+	return executions, nil
+}
+
 func (m *MockFlowRepository) BulkUpdateFlowsEnabled(ctx context.Context, ids []string, enabled bool) error {
 	for _, id := range ids {
 		if flow, exists := m.flows[id]; exists {

@@ -497,6 +497,60 @@ func (s *FlowServer) BulkEnableFlows(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Execution Handlers
+
+func (s *FlowServer) GetExecution(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	executionID := vars["executionId"]
+
+	exec, err := s.repo.GetExecution(r.Context(), executionID)
+	if err != nil {
+		if err == domain.ErrExecutionNotFound {
+			http.Error(w, "Execution not found", http.StatusNotFound)
+		} else {
+			http.Error(w, fmt.Sprintf("Failed to get execution: %v", err), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(exec)
+}
+
+func (s *FlowServer) ListExecutions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	flowID := vars["flowId"]
+
+	// Parse query parameters
+	limit := 50 // default
+	offset := 0
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsed, err := fmt.Sscanf(limitStr, "%d", &limit); err != nil || parsed != 1 {
+			limit = 50
+		}
+	}
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if parsed, err := fmt.Sscanf(offsetStr, "%d", &offset); err != nil || parsed != 1 {
+			offset = 0
+		}
+	}
+
+	executions, err := s.repo.ListExecutions(r.Context(), flowID, limit, offset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list executions: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"executions": executions,
+		"limit":      limit,
+		"offset":     offset,
+	})
+}
+
 func setupRoutes(server *FlowServer, replayer *WebhookReplayer) *mux.Router {
 	r := mux.NewRouter()
 
@@ -508,7 +562,13 @@ func setupRoutes(server *FlowServer, replayer *WebhookReplayer) *mux.Router {
 	r.HandleFunc("/api/v1/zones/{zoneId}/flows", server.ListFlows).Methods("GET")
 	r.HandleFunc("/api/v1/flows/{flowId}/enable", server.EnableFlow).Methods("POST")
 	r.HandleFunc("/api/v1/flows/{flowId}/disable", server.DisableFlow).Methods("POST")
+	r.HandleFunc("/api/v1/flows/{flowId}/enable", server.EnableFlow).Methods("POST")
+	r.HandleFunc("/api/v1/flows/{flowId}/disable", server.DisableFlow).Methods("POST")
 	r.HandleFunc("/api/v1/flows/bulk", server.BulkEnableFlows).Methods("POST")
+
+	// Execution API routes
+	r.HandleFunc("/api/v1/executions/{executionId}", server.GetExecution).Methods("GET")
+	r.HandleFunc("/api/v1/flows/{flowId}/executions", server.ListExecutions).Methods("GET")
 
 	// Debug API routes
 	r.HandleFunc("/api/v1/flows/{flowId}/zones/{zoneId}/debug", server.StartDebugSession).Methods("POST")

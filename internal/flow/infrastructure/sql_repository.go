@@ -137,16 +137,67 @@ func (r *SQLRepository) UpdateExecution(ctx context.Context, exec *domain.FlowEx
 }
 
 func (r *SQLRepository) GetExecution(ctx context.Context, id string) (*domain.FlowExecution, error) {
-	row := r.db.QueryRowContext(ctx, "SELECT id, flow_id, status, current_node_id, input, output, steps, metadata, started_at, ended_at FROM flow_executions WHERE id = $1", id)
+	row := r.db.QueryRowContext(ctx, "SELECT id, flow_id, flow_version, trigger_id, status, current_node_id, input, output, steps, metadata, started_at, ended_at FROM flow_executions WHERE id = $1", id)
 
 	var exec domain.FlowExecution
 	var stepsJS []byte
-	err := row.Scan(&exec.ID, &exec.FlowID, &exec.Status, &exec.CurrentNodeID, &exec.Input, &exec.Output, &stepsJS, &exec.Metadata, &exec.StartedAt, &exec.EndedAt)
+	var triggerID sql.NullString
+	var endedAt sql.NullTime
+	var version sql.NullInt64
+
+	err := row.Scan(&exec.ID, &exec.FlowID, &version, &triggerID, &exec.Status, &exec.CurrentNodeID, &exec.Input, &exec.Output, &stepsJS, &exec.Metadata, &exec.StartedAt, &endedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrExecutionNotFound
+		}
+		return nil, err
+	}
+
+	exec.FlowVersion = int(version.Int64)
+	if triggerID.Valid {
+		exec.TriggerID = triggerID.String
+	}
+	if endedAt.Valid {
+		exec.EndedAt = endedAt.Time
+	}
+
+	json.Unmarshal(stepsJS, &exec.Steps)
+	return &exec, nil
+}
+
+func (r *SQLRepository) ListExecutions(ctx context.Context, flowID string, limit, offset int) ([]*domain.FlowExecution, error) {
+	rows, err := r.db.QueryContext(ctx,
+		"SELECT id, flow_id, flow_version, trigger_id, status, current_node_id, input, output, steps, metadata, started_at, ended_at FROM flow_executions WHERE flow_id = $1 ORDER BY started_at DESC LIMIT $2 OFFSET $3",
+		flowID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal(stepsJS, &exec.Steps)
-	return &exec, nil
+	defer rows.Close()
+
+	var executions []*domain.FlowExecution
+	for rows.Next() {
+		var exec domain.FlowExecution
+		var stepsJS []byte
+		var triggerID sql.NullString
+		var endedAt sql.NullTime
+		var version sql.NullInt64
+
+		if err := rows.Scan(&exec.ID, &exec.FlowID, &version, &triggerID, &exec.Status, &exec.CurrentNodeID, &exec.Input, &exec.Output, &stepsJS, &exec.Metadata, &exec.StartedAt, &endedAt); err != nil {
+			return nil, err
+		}
+
+		exec.FlowVersion = int(version.Int64)
+		if triggerID.Valid {
+			exec.TriggerID = triggerID.String
+		}
+		if endedAt.Valid {
+			exec.EndedAt = endedAt.Time
+		}
+
+		json.Unmarshal(stepsJS, &exec.Steps)
+		executions = append(executions, &exec)
+	}
+	return executions, nil
 }
 
 func (r *SQLRepository) BulkUpdateFlowsEnabled(ctx context.Context, ids []string, enabled bool) error {

@@ -104,6 +104,7 @@ type Repository interface {
 	CreateExecution(ctx context.Context, exec *FlowExecution) error
 	UpdateExecution(ctx context.Context, exec *FlowExecution) error
 	GetExecution(ctx context.Context, id string) (*FlowExecution, error)
+	ListExecutions(ctx context.Context, flowID string, limit, offset int) ([]*FlowExecution, error)
 
 	// Event methods for replay
 	CreateEvent(ctx context.Context, event *Event) error
