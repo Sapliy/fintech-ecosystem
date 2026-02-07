@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/sapliy/fintech-ecosystem/internal/zone"
@@ -40,7 +41,7 @@ func (h *ZoneHandler) CreateZone(w http.ResponseWriter, r *http.Request) {
 		TemplateName: req.TemplateName,
 	})
 	if err != nil {
-		jsonutil.WriteErrorJSON(w, "Failed to create zone")
+		jsonutil.WriteErrorJSON(w, fmt.Sprintf("Failed to create zone: %v", err))
 		return
 	}
 

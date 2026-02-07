@@ -555,32 +555,32 @@ func setupRoutes(server *FlowServer, replayer *WebhookReplayer) *mux.Router {
 	r := mux.NewRouter()
 
 	// Flow CRUD API routes
-	r.HandleFunc("/api/v1/flows", server.CreateFlow).Methods("POST")
-	r.HandleFunc("/api/v1/flows/{flowId}", server.GetFlow).Methods("GET")
-	r.HandleFunc("/api/v1/flows/{flowId}", server.UpdateFlow).Methods("PUT")
-	r.HandleFunc("/api/v1/flows/{flowId}", server.DeleteFlow).Methods("DELETE")
-	r.HandleFunc("/api/v1/zones/{zoneId}/flows", server.ListFlows).Methods("GET")
-	r.HandleFunc("/api/v1/flows/{flowId}/enable", server.EnableFlow).Methods("POST")
-	r.HandleFunc("/api/v1/flows/{flowId}/disable", server.DisableFlow).Methods("POST")
-	r.HandleFunc("/api/v1/flows/{flowId}/enable", server.EnableFlow).Methods("POST")
-	r.HandleFunc("/api/v1/flows/{flowId}/disable", server.DisableFlow).Methods("POST")
-	r.HandleFunc("/api/v1/flows/bulk", server.BulkEnableFlows).Methods("POST")
+	r.HandleFunc("/v1/flows", server.CreateFlow).Methods("POST")
+	r.HandleFunc("/v1/flows/{flowId}", server.GetFlow).Methods("GET")
+	r.HandleFunc("/v1/flows/{flowId}", server.UpdateFlow).Methods("PUT")
+	r.HandleFunc("/v1/flows/{flowId}", server.DeleteFlow).Methods("DELETE")
+	r.HandleFunc("/v1/zones/{zoneId}/flows", server.ListFlows).Methods("GET")
+	r.HandleFunc("/v1/flows/{flowId}/enable", server.EnableFlow).Methods("POST")
+	r.HandleFunc("/v1/flows/{flowId}/disable", server.DisableFlow).Methods("POST")
+	r.HandleFunc("/v1/flows/{flowId}/enable", server.EnableFlow).Methods("POST")
+	r.HandleFunc("/v1/flows/{flowId}/disable", server.DisableFlow).Methods("POST")
+	r.HandleFunc("/v1/flows/bulk", server.BulkEnableFlows).Methods("POST")
 
 	// Execution API routes
-	r.HandleFunc("/api/v1/executions/{executionId}", server.GetExecution).Methods("GET")
-	r.HandleFunc("/api/v1/flows/{flowId}/executions", server.ListExecutions).Methods("GET")
+	r.HandleFunc("/v1/executions/{executionId}", server.GetExecution).Methods("GET")
+	r.HandleFunc("/v1/flows/{flowId}/executions", server.ListExecutions).Methods("GET")
 
 	// Debug API routes
-	r.HandleFunc("/api/v1/flows/{flowId}/zones/{zoneId}/debug", server.StartDebugSession).Methods("POST")
-	r.HandleFunc("/api/v1/debug/sessions/{sessionId}", server.GetDebugSession).Methods("GET")
-	r.HandleFunc("/api/v1/debug/sessions/{sessionId}", server.EndDebugSession).Methods("DELETE")
-	r.HandleFunc("/api/v1/debug/sessions/{sessionId}/events", server.GetDebugEvents).Methods("GET")
-	r.HandleFunc("/api/v1/debug/sessions/{sessionId}/ws", server.DebugWebSocket).Methods("GET")
+	r.HandleFunc("/v1/flows/{flowId}/zones/{zoneId}/debug", server.StartDebugSession).Methods("POST")
+	r.HandleFunc("/v1/debug/sessions/{sessionId}", server.GetDebugSession).Methods("GET")
+	r.HandleFunc("/v1/debug/sessions/{sessionId}", server.EndDebugSession).Methods("DELETE")
+	r.HandleFunc("/v1/debug/sessions/{sessionId}/events", server.GetDebugEvents).Methods("GET")
+	r.HandleFunc("/v1/debug/sessions/{sessionId}/ws", server.DebugWebSocket).Methods("GET")
 
 	// Webhook Replay API routes
-	r.HandleFunc("/api/v1/zones/{zoneId}/events/past", replayer.GetPastEvents).Methods("GET")
-	r.HandleFunc("/api/v1/events/{eventId}/replay", replayer.ReplayEvent).Methods("POST")
-	r.HandleFunc("/api/v1/zones/{zoneId}/events/bulk-replay", replayer.BulkReplayEvents).Methods("POST")
+	r.HandleFunc("/v1/zones/{zoneId}/events/past", replayer.GetPastEvents).Methods("GET")
+	r.HandleFunc("/v1/events/{eventId}/replay", replayer.ReplayEvent).Methods("POST")
+	r.HandleFunc("/v1/zones/{zoneId}/events/bulk-replay", replayer.BulkReplayEvents).Methods("POST")
 
 	return r
 }

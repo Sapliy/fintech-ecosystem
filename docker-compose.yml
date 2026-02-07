@@ -180,6 +180,7 @@ services:
       - LEDGER_SERVICE_URL=http://ledger:8083
       - WALLET_GRPC_ADDR=wallet:50053
       - EVENTS_SERVICE_URL=http://events:8089
+      - FLOW_SERVICE_URL=http://flow-service:8088
       - API_KEY_HMAC_SECRET=super-secret-pepper-change-me-in-prod
     ports:
       - "8080:8080"
@@ -207,6 +208,25 @@ services:
     networks:
       - microservices-net
 
+  flow-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: flow-service
+    container_name: microservices_flow_service
+    environment:
+      - DB_DSN=postgres://user:password@postgres:5432/microservices?sslmode=disable
+      - KAFKA_BROKERS=redpanda:29092
+      - PORT=8088
+    ports:
+      - "8088:8088"
+    depends_on:
+      - postgres
+      - redpanda
+    networks:
+      - microservices-net
+
   flow-runner:
     build:
       context: .
@@ -217,6 +237,7 @@ services:
     environment:
       - DB_DSN=postgres://user:password@postgres:5432/microservices?sslmode=disable
       - KAFKA_BROKERS=redpanda:29092
+      - REDIS_ADDR=redis:6379
     depends_on:
       - redpanda
       - postgres

@@ -30,10 +30,17 @@ type Flow struct {
 	Description string    `json:"description"`
 	Enabled     bool      `json:"enabled"`
 	Version     int       `json:"version"` // Current version
+	Trigger     Trigger   `json:"trigger"`
 	Nodes       []Node    `json:"nodes"`
 	Edges       []Edge    `json:"edges"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type Trigger struct {
+	Type      string          `json:"type"`       // "event", "schedule", "webhook"
+	EventType string          `json:"event_type"` // e.g. "user.signup"
+	Config    json.RawMessage `json:"config"`     // Additional config
 }
 
 type Node struct {

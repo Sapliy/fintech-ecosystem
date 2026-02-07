@@ -45,6 +45,7 @@ type GatewayHandler struct {
 	walletServiceURL       string
 	billingServiceURL      string
 	eventsServiceURL       string
+	flowServiceURL         string
 	notificationServiceURL string
 	rdb                    *redis.Client
 	upgrader               websocket.Upgrader
@@ -55,7 +56,7 @@ type GatewayHandler struct {
 }
 
 // NewGatewayHandler creates a new instance of GatewayHandler.
-func NewGatewayHandler(auth, payment, ledger, wallet, billing, events, notification string, rdb *redis.Client, authClient pb.AuthServiceClient, walletClient walletpb.WalletServiceClient, hmacSecret string, logger *observability.Logger) *GatewayHandler {
+func NewGatewayHandler(auth, payment, ledger, wallet, billing, events, flow, notification string, rdb *redis.Client, authClient pb.AuthServiceClient, walletClient walletpb.WalletServiceClient, hmacSecret string, logger *observability.Logger) *GatewayHandler {
 	return &GatewayHandler{
 		authServiceURL:         auth,
 		paymentServiceURL:      payment,
@@ -63,6 +64,7 @@ func NewGatewayHandler(auth, payment, ledger, wallet, billing, events, notificat
 		walletServiceURL:       wallet,
 		billingServiceURL:      billing,
 		eventsServiceURL:       events,
+		flowServiceURL:         flow,
 		notificationServiceURL: notification,
 		rdb:                    rdb,
 		upgrader: websocket.Upgrader{
@@ -256,6 +258,9 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.proxyRequest(h.eventsServiceURL, w, r)
+
+	case strings.HasPrefix(p, "/flows") || strings.HasPrefix(p, "/executions"):
+		h.proxyRequest(h.flowServiceURL, w, r)
 
 	case p == "/ws": // Legacy or alternative WS path
 		if websocket.IsWebSocketUpgrade(r) {
@@ -498,6 +503,11 @@ func main() {
 		eventsURL = "http://127.0.0.1:8089"
 	}
 
+	flowURL := os.Getenv("FLOW_SERVICE_URL")
+	if flowURL == "" {
+		flowURL = "http://127.0.0.1:8088"
+	}
+
 	billingURL := os.Getenv("BILLING_SERVICE_URL")
 	if billingURL == "" {
 		billingURL = "http://127.0.0.1:8089" // Assuming a port for billing REST if added, or proxying gRPC?
@@ -579,7 +589,7 @@ func main() {
 		logger.Warn("API_KEY_HMAC_SECRET not set, using default for dev")
 	}
 
-	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, walletURL, billingURL, eventsURL, notificationURL, rdb, authClient, walletClient, hmacSecret, logger)
+	gateway := NewGatewayHandler(authURL, paymentURL, ledgerURL, walletURL, billingURL, eventsURL, flowURL, notificationURL, rdb, authClient, walletClient, hmacSecret, logger)
 
 	// Wrap handler with OpenTelemetry and Prometheus
 	otelHandler := otelhttp.NewHandler(gateway, "gateway-request")
