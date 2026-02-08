@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"os"
@@ -24,9 +25,23 @@ func main() {
 		dsn = "postgres://user:password@127.0.0.1:5433/microservices?sslmode=disable"
 	}
 
-	db, err := database.Connect(dsn)
-	if err != nil {
-		log.Fatalf("Failed to connect to DB: %v", err)
+	var db *sql.DB
+	var err error
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		db, err = database.Connect(dsn)
+		if err == nil {
+			log.Println("Database connection established")
+			break
+		}
+		log.Printf("Warning: Database connection failed (attempt %d/%d): %v", i+1, maxRetries, err)
+		if i < maxRetries-1 {
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	if db == nil {
+		log.Fatalf("Failed to connect to DB after %d attempts", maxRetries)
 	}
 	defer db.Close()
 

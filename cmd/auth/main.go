@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sapliy/fintech-ecosystem/internal/auth/domain"
@@ -36,20 +38,32 @@ func main() {
 		dsn = "postgres://user:password@127.0.0.1:5433/microservices?sslmode=disable"
 	}
 
-	db, err := database.Connect(dsn)
-	if err != nil {
-		log.Printf("Warning: Database connection failed (ensure Docker is running): %v", err)
-	} else {
-		log.Println("Database connection established")
+	var db *sql.DB
+	var err error
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		db, err = database.Connect(dsn)
+		if err == nil {
+			log.Println("Database connection established")
+			break
+		}
+		log.Printf("Warning: Database connection failed (attempt %d/%d): %v", i+1, maxRetries, err)
+		if i < maxRetries-1 {
+			time.Sleep(2 * time.Second)
+		}
+	}
 
-		// Run automated migrations
-		migrationPath := os.Getenv("MIGRATIONS_PATH")
-		if migrationPath == "" {
-			migrationPath = "migrations/auth"
-		}
-		if err := database.Migrate(db, "microservices", migrationPath); err != nil {
-			log.Fatalf("Failed to run migrations: %v", err)
-		}
+	if db == nil {
+		log.Fatalf("Failed to connect to database after %d attempts", maxRetries)
+	}
+
+	// Run automated migrations
+	migrationPath := os.Getenv("MIGRATIONS_PATH")
+	if migrationPath == "" {
+		migrationPath = "migrations/auth"
+	}
+	if err := database.Migrate(db, "microservices", migrationPath); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
 	}
 	if db != nil {
 		defer func() {

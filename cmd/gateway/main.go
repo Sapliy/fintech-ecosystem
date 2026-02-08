@@ -221,8 +221,8 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Route to Service
 	// Handle /v1 prefix by optional stripping
 	p := path
-	if strings.HasPrefix(p, "/v1") {
-		p = strings.TrimPrefix(p, "/v1")
+	if after, ok :=strings.CutPrefix(p, "/v1"); ok  {
+		p = after
 	}
 
 	switch {
