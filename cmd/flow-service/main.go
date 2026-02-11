@@ -552,6 +552,30 @@ func (s *FlowServer) ListExecutions(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *FlowServer) ResumeExecution(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	executionID := vars["executionId"]
+
+	var overrides map[string]interface{}
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&overrides); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := s.runner.Resume(r.Context(), executionID, overrides); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to resume execution: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Execution resumed",
+		"id":      executionID,
+	})
+}
+
 func setupRoutes(server *FlowServer, replayer *WebhookReplayer) *mux.Router {
 	r := mux.NewRouter()
 
@@ -570,6 +594,7 @@ func setupRoutes(server *FlowServer, replayer *WebhookReplayer) *mux.Router {
 	// Execution API routes
 	r.HandleFunc("/v1/executions/{executionId}", server.GetExecution).Methods("GET")
 	r.HandleFunc("/v1/flows/{flowId}/executions", server.ListExecutions).Methods("GET")
+	r.HandleFunc("/v1/executions/{executionId}/resume", server.ResumeExecution).Methods("POST")
 
 	// Debug API routes
 	r.HandleFunc("/v1/flows/{flowId}/zones/{zoneId}/debug", server.StartDebugSession).Methods("POST")
