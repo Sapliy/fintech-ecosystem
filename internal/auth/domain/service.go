@@ -50,7 +50,7 @@ func (s *AuthService) CreateUser(ctx context.Context, email, passwordHash string
 	if s.publisher != nil {
 		baseURL := os.Getenv("APP_BASE_URL")
 		if baseURL == "" {
-			baseURL = "https://sapliy.com"
+			baseURL = "https://sapliy.io"
 		}
 		event := map[string]interface{}{
 			"id":        uuid.New().String(),
@@ -275,7 +275,7 @@ func (s *AuthService) CreatePasswordResetToken(ctx context.Context, userID strin
 		if err == nil && user != nil {
 			baseURL := os.Getenv("APP_BASE_URL")
 			if baseURL == "" {
-				baseURL = "https://sapliy.com"
+				baseURL = "https://sapliy.io"
 			}
 			event := map[string]interface{}{
 				"id":        uuid.New().String(),
@@ -348,6 +348,40 @@ func (s *AuthService) CreateEmailVerificationToken(ctx context.Context, userID s
 	}
 
 	return rawToken, nil
+}
+
+func (s *AuthService) ResendEmailVerification(ctx context.Context, userID string) (string, error) {
+	token, err := s.CreateEmailVerificationToken(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+
+	// Publish UserRegistered event (or we could use a specific resend event, but user.registered triggers the verification email)
+	if s.publisher != nil {
+		user, err := s.repo.GetUserByID(ctx, userID)
+		if err == nil && user != nil {
+			baseURL := os.Getenv("APP_BASE_URL")
+			if baseURL == "" {
+				baseURL = "https://sapliy.io"
+			}
+			event := map[string]interface{}{
+				"id":        uuid.New().String(),
+				"type":      "user.registered", // Consistent with CreateUser
+				"timestamp": time.Now().UTC(),
+				"data": map[string]string{
+					"user_id": user.ID,
+					"email":   user.Email,
+					"token":   token,
+					"link":    fmt.Sprintf("%s/verify-email?token=%s", baseURL, token),
+				},
+			}
+			if err := s.publisher.Publish(ctx, "", event); err != nil {
+				log.Printf("Failed to publish UserRegistered event for resend: %v", err)
+			}
+		}
+	}
+
+	return token, nil
 }
 
 func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string) error {

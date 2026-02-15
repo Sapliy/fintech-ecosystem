@@ -970,10 +970,10 @@ func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Generate verification token
-	token, err := h.service.CreateEmailVerificationToken(r.Context(), user.ID)
+	// Generate and send verification token
+	token, err := h.service.ResendEmailVerification(r.Context(), user.ID)
 	if err != nil {
-		log.Printf("ResendVerification: Error creating verification token: %v", err)
+		log.Printf("ResendVerification: Error resending verification: %v", err)
 		jsonutil.WriteErrorJSON(w, "Failed to process request")
 		return
 	}

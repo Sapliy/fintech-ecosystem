@@ -14,7 +14,7 @@ const (
 )
 
 // Base URL for assets (should be configurable via env, hardcoded for now or use app URL)
-const AssetsBaseURL = "https://sapliy.com"
+const AssetsBaseURL = "https://sapliy.io"
 
 func GetEmailSubject(templateID string) string {
 	switch templateID {
