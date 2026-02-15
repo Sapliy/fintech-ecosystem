@@ -105,7 +105,9 @@ const verificationContent = `
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                         <tbody>
                             <tr>
-                                <td> <a href="{{.Link}}" target="_blank">Verify Email Address</a> </td>
+                                <td style="border-radius: 4px; background-color: #5e6ad2;">
+                                    <a href="{{.Link}}" target="_blank" style="background-color: #5e6ad2; border: solid 1px #5e6ad2; border-radius: 4px; box-sizing: border-box; color: #ffffff; cursor: pointer; display: inline-block; font-size: 16px; font-weight: bold; margin: 0; padding: 12px 25px; text-decoration: none; text-transform: capitalize;">Verify Email Address</a>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -113,7 +115,7 @@ const verificationContent = `
             </tr>
         </tbody>
     </table>
-    <p>This link will expire in 24 hours.</p>
+    <p>This link will expire in 15 minutes.</p>
 `
 
 const forgotPasswordContent = `
