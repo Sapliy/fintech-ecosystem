@@ -340,7 +340,7 @@ func (s *AuthService) CreateEmailVerificationToken(ctx context.Context, userID s
 		ID:        uuid.New().String(),
 		UserID:    userID,
 		Token:     tokenHash,
-		ExpiresAt: time.Now().Add(24 * time.Hour), // 24 hour expiry
+		ExpiresAt: time.Now().Add(15 * time.Minute), // 15 minute expiry
 	}
 
 	if err := s.repo.CreateEmailVerificationToken(ctx, token); err != nil {
