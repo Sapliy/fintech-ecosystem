@@ -13,10 +13,15 @@ import (
 type Service struct {
 	repo      domain.Repository
 	providers domain.TemplateProviders
+	publisher domain.EventPublisher
 }
 
-func NewService(repo domain.Repository, providers domain.TemplateProviders) *Service {
-	return &Service{repo: repo, providers: providers}
+func NewService(repo domain.Repository, providers domain.TemplateProviders, publisher domain.EventPublisher) *Service {
+	return &Service{
+		repo:      repo,
+		providers: providers,
+		publisher: publisher,
+	}
 }
 
 func (s *Service) CreateZone(ctx context.Context, params domain.CreateZoneParams) (*domain.Zone, error) {
@@ -53,6 +58,21 @@ func (s *Service) CreateZone(ctx context.Context, params domain.CreateZoneParams
 				// We log the error but don't fail zone creation
 				fmt.Printf("Warning: Failed to apply template %s: %v\n", params.TemplateName, err)
 			}
+		}
+	}
+
+	// Publish event
+	if s.publisher != nil {
+		event := domain.ZoneCreatedEvent{
+			ZoneID:    zone.ID,
+			OrgID:     zone.OrgID,
+			Name:      zone.Name,
+			Mode:      zone.Mode,
+			Timestamp: zone.CreatedAt,
+			Metadata:  zone.Metadata,
+		}
+		if err := s.publisher.PublishZoneCreated(ctx, event); err != nil {
+			fmt.Printf("Warning: Failed to publish zone.created event: %v\n", err)
 		}
 	}
 

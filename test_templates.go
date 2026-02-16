@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// Create zone service
-	zoneService := zone.NewService(mockRepo, providers)
+	zoneService := zone.NewService(mockRepo, providers, &MockEventPublisher{})
 
 	// Create template service
 	templateService := zone.NewTemplateService(zoneService)
@@ -147,4 +147,12 @@ func (m *MockRepo) Delete(ctx context.Context, id string) error {
 		return nil
 	}
 	return domain.ErrZoneNotFound
+}
+
+// MockEventPublisher implements domain.EventPublisher for testing
+type MockEventPublisher struct{}
+
+func (m *MockEventPublisher) PublishZoneCreated(ctx context.Context, event domain.ZoneCreatedEvent) error {
+	fmt.Printf("📢 [Event] Zone Created: %s (Org: %s)\n", event.ZoneID, event.OrgID)
+	return nil
 }

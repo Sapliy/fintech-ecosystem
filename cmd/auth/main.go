@@ -108,8 +108,11 @@ func main() {
 	cachedRepo := infrastructure.NewCachedRepository(sqlRepo, rdb)
 	authService := domain.NewAuthService(cachedRepo, publisher)
 
+	// Zone Service Setup
 	zoneSQLRepo := zoneInfra.NewSQLRepository(db)
 	zoneRepo := zoneInfra.NewCachedRepository(zoneSQLRepo, rdb)
+	zonePublisher := zoneInfra.NewRedisEventPublisher(rdb)
+
 	flowRepo := flowInfra.NewSQLRepository(db)
 
 	providers := zoneDomain.TemplateProviders{
@@ -142,7 +145,7 @@ func main() {
 			})
 		},
 	}
-	zoneService := zone.NewService(zoneRepo, providers)
+	zoneService := zone.NewService(zoneRepo, providers, zonePublisher)
 	templateService := zone.NewTemplateService(zoneService)
 
 	handler := &AuthHandler{service: authService, hmacSecret: hmacSecret, rdb: rdb}
