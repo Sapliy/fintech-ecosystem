@@ -188,6 +188,8 @@ func main() {
 
 	mux.HandleFunc("/register", handler.Register)
 	mux.HandleFunc("/login", handler.Login)
+	mux.HandleFunc("/refresh", handler.Refresh)
+	mux.HandleFunc("/logout", handler.Logout)
 	mux.HandleFunc("/organizations", handler.CreateOrganization)
 	mux.HandleFunc("/api_keys", handler.GenerateAPIKey)
 	mux.HandleFunc("/oauth/token", handler.OAuthTokenHandler)

@@ -36,6 +36,16 @@ type EmailVerificationToken struct {
 	CreatedAt time.Time  `json:"created_at"`
 }
 
+// RefreshToken represents a long-lived token for refreshing access tokens.
+type RefreshToken struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	TokenHash string    `json:"-"`
+	ExpiresAt time.Time `json:"expires_at"`
+	Revoked   bool      `json:"revoked"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // Organization represents a team or company.
 type Organization struct {
 	ID             string    `json:"id"`

@@ -42,6 +42,10 @@ type MockRepository struct {
 	GetSSOProviderByDomainFunc         func(ctx context.Context, domain string) (*SSOProvider, error)
 	CreateAuditLogFunc                 func(ctx context.Context, log *AuditLog) error
 	GetAuditLogsFunc                   func(ctx context.Context, orgID string, limit, offset int, action string) ([]AuditLog, int, error)
+	// RefreshToken
+	CreateRefreshTokenFunc func(ctx context.Context, token *RefreshToken) error
+	GetRefreshTokenFunc    func(ctx context.Context, tokenHash string) (*RefreshToken, error)
+	RevokeRefreshTokenFunc func(ctx context.Context, id string) error
 }
 
 func (m *MockRepository) CreateUser(ctx context.Context, email, passwordHash string) (*User, error) {

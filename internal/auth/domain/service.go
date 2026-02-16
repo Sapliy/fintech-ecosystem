@@ -407,6 +407,56 @@ func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string) error {
 	return s.repo.MarkEmailVerificationTokenUsed(ctx, tokenHash)
 }
 
+// RefreshToken methods
+
+func (s *AuthService) CreateRefreshToken(ctx context.Context, userID string) (string, error) {
+	rawToken, err := s.GenerateRandomString(32)
+	if err != nil {
+		return "", err
+	}
+
+	tokenHash := s.HashString(rawToken)
+
+	// Refresh token valid for 7 days
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+	token := &RefreshToken{
+		ID:        uuid.New().String(),
+		UserID:    userID,
+		TokenHash: tokenHash,
+		ExpiresAt: expiresAt,
+		Revoked:   false,
+	}
+
+	if err := s.repo.CreateRefreshToken(ctx, token); err != nil {
+		return "", err
+	}
+
+	return rawToken, nil
+}
+
+func (s *AuthService) ValidateRefreshToken(ctx context.Context, rawToken string) (*RefreshToken, error) {
+	tokenHash := s.HashString(rawToken)
+	token, err := s.repo.GetRefreshToken(ctx, tokenHash)
+	if err != nil {
+		return nil, err
+	}
+	if token == nil {
+		return nil, fmt.Errorf("invalid refresh token")
+	}
+	if token.Revoked {
+		return nil, fmt.Errorf("refresh token revoked")
+	}
+	if time.Now().After(token.ExpiresAt) {
+		return nil, fmt.Errorf("refresh token expired")
+	}
+	return token, nil
+}
+
+func (s *AuthService) RevokeRefreshToken(ctx context.Context, id string) error {
+	return s.repo.RevokeRefreshToken(ctx, id)
+}
+
 func (s *AuthService) UpdateUserPassword(ctx context.Context, userID, passwordHash string) error {
 	return s.repo.UpdateUserPassword(ctx, userID, passwordHash)
 }

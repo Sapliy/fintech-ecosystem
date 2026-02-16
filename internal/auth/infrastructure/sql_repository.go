@@ -204,6 +204,46 @@ func (r *SQLRepository) MarkEmailVerificationTokenUsed(ctx context.Context, toke
 	return nil
 }
 
+// RefreshToken methods
+
+func (r *SQLRepository) CreateRefreshToken(ctx context.Context, token *domain.RefreshToken) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked) VALUES ($1, $2, $3, $4, $5)`,
+		token.ID, token.UserID, token.TokenHash, token.ExpiresAt, token.Revoked)
+	if err != nil {
+		return fmt.Errorf("failed to create refresh token: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) GetRefreshToken(ctx context.Context, tokenHash string) (*domain.RefreshToken, error) {
+	var token domain.RefreshToken
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, user_id, token_hash, expires_at, revoked, created_at FROM refresh_tokens WHERE token_hash = $1`,
+		tokenHash).Scan(&token.ID, &token.UserID, &token.TokenHash, &token.ExpiresAt, &token.Revoked, &token.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get refresh token: %w", err)
+	}
+	return &token, nil
+}
+
+func (r *SQLRepository) RevokeRefreshToken(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1`,
+		id)
+	if err != nil {
+		return fmt.Errorf("failed to revoke refresh token: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("refresh token not found")
+	}
+	return nil
+}
+
 // Organization methods
 
 func (r *SQLRepository) CreateOrganization(ctx context.Context, name, domainName string) (*domain.Organization, error) {

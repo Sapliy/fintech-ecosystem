@@ -32,11 +32,23 @@ type GenerateAPIKeyResponse struct {
 
 // Helper to extract UserID from JWT
 func extractUserIDFromToken(r *http.Request) (string, error) {
+	// 1. Check Authorization header
 	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
+	var tokenString string
+	if authHeader != "" {
+		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+	} else {
+		// 2. Check Cookie
+		cookie, err := r.Cookie("auth-token")
+		if err == nil {
+			tokenString = cookie.Value
+		}
+	}
+
+	if tokenString == "" {
 		return "", nil
 	}
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
 	claims, err := jwtutil.ValidateToken(tokenString)
 	if err != nil {
 		return "", err
@@ -109,90 +121,6 @@ func (h *AuthHandler) GenerateAPIKey(w http.ResponseWriter, r *http.Request) {
 		Type:         req.Type,
 		TruncatedKey: truncated,
 	})
-}
-
-type ValidateAPIKeyRequest struct {
-	KeyHash string `json:"key_hash"`
-}
-
-type ValidateAPIKeyResponse struct {
-	Valid       bool   `json:"valid"`
-	UserID      string `json:"user_id"`
-	OrgID       string `json:"org_id"`
-	ZoneID      string `json:"zone_id"`
-	Mode        string `json:"mode"`
-	Environment string `json:"environment"`
-	Scopes      string `json:"scopes"`
-	Type        string `json:"type"`
-}
-
-func (h *AuthHandler) ValidateAPIKey(w http.ResponseWriter, r *http.Request) {
-	var req ValidateAPIKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		jsonutil.WriteErrorJSON(w, "Invalid request body")
-		return
-	}
-
-	key, err := h.service.GetAPIKeyByHash(r.Context(), req.KeyHash)
-	if err != nil {
-		log.Printf("Error validating key: %v", err)
-		jsonutil.WriteErrorJSON(w, "Validation failed")
-		return
-	}
-
-	if key == nil || key.RevokedAt != nil {
-		jsonutil.WriteJSON(w, http.StatusOK, ValidateAPIKeyResponse{Valid: false})
-		return
-	}
-
-	jsonutil.WriteJSON(w, http.StatusOK, ValidateAPIKeyResponse{
-		Valid:       true,
-		UserID:      key.UserID,
-		OrgID:       key.OrgID,
-		ZoneID:      key.ZoneID,
-		Mode:        key.Mode,
-		Environment: key.Environment,
-		Scopes:      key.Scopes,
-		Type:        key.Type,
-	})
-}
-
-type CreateOrganizationRequest struct {
-	Name   string `json:"name"`
-	Domain string `json:"domain"`
-}
-
-func (h *AuthHandler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
-	userID, err := extractUserIDFromToken(r)
-	if err != nil || userID == "" {
-		jsonutil.WriteErrorJSON(w, "Unauthorized")
-		return
-	}
-
-	var req CreateOrganizationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		jsonutil.WriteErrorJSON(w, "Invalid request body")
-		return
-	}
-
-	if req.Name == "" {
-		jsonutil.WriteErrorJSON(w, "Name is required")
-		return
-	}
-
-	org, err := h.service.CreateOrganization(r.Context(), req.Name, req.Domain)
-	if err != nil {
-		log.Printf("Failed to create organization: %v", err)
-		jsonutil.WriteErrorJSON(w, "Failed to create organization")
-		return
-	}
-
-	// Add creator as owner
-	if err := h.service.AddMember(r.Context(), userID, org.ID, domain.RoleOwner); err != nil {
-		log.Printf("Failed to add owner to organization: %v", err)
-	}
-
-	jsonutil.WriteJSON(w, http.StatusCreated, org)
 }
 
 // AuthHandler holds dependencies for authentication endpoints.
@@ -309,6 +237,36 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate Refresh Token
+	refreshToken, err := h.service.CreateRefreshToken(r.Context(), user.ID)
+	if err != nil {
+		log.Printf("Login: Failed to create refresh token: %v", err)
+		jsonutil.WriteErrorJSON(w, "Failed to create session")
+		return
+	}
+
+	// Set Access Token Cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth-token",
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		Expires:  time.Now().Add(15 * time.Minute), // Short lived
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// Set Refresh Token Cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshtoken",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	// Hide password hash in response
 	user.Password = ""
 
@@ -317,6 +275,101 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 		User:  user,
 	})
+}
+
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("refreshtoken")
+	if err != nil {
+		jsonutil.WriteErrorJSON(w, "No refresh token provided")
+		return
+	}
+
+	refreshToken, err := h.service.ValidateRefreshToken(r.Context(), cookie.Value)
+	if err != nil {
+		log.Printf("Refresh: Invalid token: %v", err)
+		// Clear cookies
+		http.SetCookie(w, &http.Cookie{
+			Name:     "auth-token",
+			Value:    "",
+			HttpOnly: true,
+			Secure:   true,
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
+			SameSite: http.SameSiteLaxMode,
+		})
+		http.SetCookie(w, &http.Cookie{
+			Name:     "refreshtoken",
+			Value:    "",
+			HttpOnly: true,
+			Secure:   true,
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
+			SameSite: http.SameSiteLaxMode,
+		})
+		jsonutil.WriteErrorJSON(w, "Invalid or expired refresh token")
+		return
+	}
+
+	// Generate new access token
+	user, err := h.service.GetUserByID(r.Context(), refreshToken.UserID)
+	if err != nil {
+		jsonutil.WriteErrorJSON(w, "User not found")
+		return
+	}
+
+	newToken, err := jwtutil.GenerateToken(user.ID, user.Email)
+	if err != nil {
+		jsonutil.WriteErrorJSON(w, "Failed to generate token")
+		return
+	}
+
+	// Set New Access Token Cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth-token",
+		Value:    newToken,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		Expires:  time.Now().Add(15 * time.Minute),
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	jsonutil.WriteJSON(w, http.StatusOK, map[string]string{
+		"token": newToken,
+	})
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("refreshtoken")
+	if err == nil {
+		// Revoke in DB
+		token, err := h.service.ValidateRefreshToken(r.Context(), cookie.Value)
+		if err == nil && token != nil {
+			_ = h.service.RevokeRefreshToken(r.Context(), token.ID)
+		}
+	}
+
+	// Clear cookies
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth-token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		SameSite: http.SameSiteLaxMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshtoken",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	jsonutil.WriteJSON(w, http.StatusOK, map[string]string{"message": "Logged out"})
 }
 
 // OAuthTokenResponse represents the response for /oauth/token.

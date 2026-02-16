@@ -24,6 +24,11 @@ type Repository interface {
 	GetEmailVerificationToken(ctx context.Context, tokenHash string) (*EmailVerificationToken, error)
 	MarkEmailVerificationTokenUsed(ctx context.Context, tokenHash string) error
 
+	// RefreshToken methods
+	CreateRefreshToken(ctx context.Context, token *RefreshToken) error
+	GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error)
+	RevokeRefreshToken(ctx context.Context, id string) error
+
 	// Organization methods
 	CreateOrganization(ctx context.Context, name, domain string) (*Organization, error)
 	GetOrganization(ctx context.Context, id string) (*Organization, error)
