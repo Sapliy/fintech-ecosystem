@@ -123,6 +123,90 @@ func (h *AuthHandler) GenerateAPIKey(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type ValidateAPIKeyRequest struct {
+	KeyHash string `json:"key_hash"`
+}
+
+type ValidateAPIKeyResponse struct {
+	Valid       bool   `json:"valid"`
+	UserID      string `json:"user_id"`
+	OrgID       string `json:"org_id"`
+	ZoneID      string `json:"zone_id"`
+	Mode        string `json:"mode"`
+	Environment string `json:"environment"`
+	Scopes      string `json:"scopes"`
+	Type        string `json:"type"`
+}
+
+func (h *AuthHandler) ValidateAPIKey(w http.ResponseWriter, r *http.Request) {
+	var req ValidateAPIKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		return
+	}
+
+	key, err := h.service.GetAPIKeyByHash(r.Context(), req.KeyHash)
+	if err != nil {
+		log.Printf("Error validating key: %v", err)
+		jsonutil.WriteErrorJSON(w, "Validation failed")
+		return
+	}
+
+	if key == nil || key.RevokedAt != nil {
+		jsonutil.WriteJSON(w, http.StatusOK, ValidateAPIKeyResponse{Valid: false})
+		return
+	}
+
+	jsonutil.WriteJSON(w, http.StatusOK, ValidateAPIKeyResponse{
+		Valid:       true,
+		UserID:      key.UserID,
+		OrgID:       key.OrgID,
+		ZoneID:      key.ZoneID,
+		Mode:        key.Mode,
+		Environment: key.Environment,
+		Scopes:      key.Scopes,
+		Type:        key.Type,
+	})
+}
+
+type CreateOrganizationRequest struct {
+	Name   string `json:"name"`
+	Domain string `json:"domain"`
+}
+
+func (h *AuthHandler) CreateOrganization(w http.ResponseWriter, r *http.Request) {
+	userID, err := extractUserIDFromToken(r)
+	if err != nil || userID == "" {
+		jsonutil.WriteErrorJSON(w, "Unauthorized")
+		return
+	}
+
+	var req CreateOrganizationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		return
+	}
+
+	if req.Name == "" {
+		jsonutil.WriteErrorJSON(w, "Name is required")
+		return
+	}
+
+	org, err := h.service.CreateOrganization(r.Context(), req.Name, req.Domain)
+	if err != nil {
+		log.Printf("Failed to create organization: %v", err)
+		jsonutil.WriteErrorJSON(w, "Failed to create organization")
+		return
+	}
+
+	// Add creator as owner
+	if err := h.service.AddMember(r.Context(), userID, org.ID, domain.RoleOwner); err != nil {
+		log.Printf("Failed to add owner to organization: %v", err)
+	}
+
+	jsonutil.WriteJSON(w, http.StatusCreated, org)
+}
+
 // AuthHandler holds dependencies for authentication endpoints.
 type AuthHandler struct {
 	service    *domain.AuthService

@@ -223,3 +223,26 @@ func (m *MockRepository) MarkEmailVerificationTokenUsed(ctx context.Context, tok
 	}
 	return nil
 }
+
+// RefreshToken methods
+
+func (m *MockRepository) CreateRefreshToken(ctx context.Context, token *RefreshToken) error {
+	if m.CreateRefreshTokenFunc != nil {
+		return m.CreateRefreshTokenFunc(ctx, token)
+	}
+	return nil
+}
+
+func (m *MockRepository) GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error) {
+	if m.GetRefreshTokenFunc != nil {
+		return m.GetRefreshTokenFunc(ctx, tokenHash)
+	}
+	return nil, nil
+}
+
+func (m *MockRepository) RevokeRefreshToken(ctx context.Context, id string) error {
+	if m.RevokeRefreshTokenFunc != nil {
+		return m.RevokeRefreshTokenFunc(ctx, id)
+	}
+	return nil
+}
