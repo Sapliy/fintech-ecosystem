@@ -246,3 +246,14 @@ func (m *MockRepository) RevokeRefreshToken(ctx context.Context, id string) erro
 	}
 	return nil
 }
+
+type MockPublisher struct {
+	PublishFunc func(ctx context.Context, topic string, event interface{}) error
+}
+
+func (m *MockPublisher) Publish(ctx context.Context, topic string, event interface{}) error {
+	if m.PublishFunc != nil {
+		return m.PublishFunc(ctx, topic, event)
+	}
+	return nil
+}
