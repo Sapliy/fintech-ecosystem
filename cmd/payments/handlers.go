@@ -9,6 +9,7 @@ import (
 
 	"github.com/sapliy/fintech-ecosystem/internal/payment/domain"
 	"github.com/sapliy/fintech-ecosystem/internal/payment/infrastructure"
+	"github.com/sapliy/fintech-ecosystem/pkg/apierror"
 	"github.com/sapliy/fintech-ecosystem/pkg/audit"
 	"github.com/sapliy/fintech-ecosystem/pkg/bank"
 	"github.com/sapliy/fintech-ecosystem/pkg/jsonutil"
@@ -42,14 +43,12 @@ func (h *PaymentHandler) IdempotencyMiddleware(next http.HandlerFunc) http.Handl
 		userID, err := extractUserIDFromToken(r)
 		if err != nil {
 			log.Printf("Error extracting user ID: %v", err)
-			jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+			apierror.Unauthorized("Invalid token").Write(w)
 			return
 		}
 		if userID == "" {
-			// If we require authentication for idempotency, we should fail here.
-			// However, extractUserIDFromToken might return "" if no auth is present.
-			// Let's assume for now that if an Idempotency-Key is provided, we need a user.
-			jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Authentication required for idempotent requests"})
+			// Idempotency-Key requires an authenticated user to scope deduplication.
+			apierror.Unauthorized("Authentication required for idempotent requests").Write(w)
 			return
 		}
 
@@ -57,7 +56,7 @@ func (h *PaymentHandler) IdempotencyMiddleware(next http.HandlerFunc) http.Handl
 		record, err := h.service.GetIdempotencyKey(r.Context(), userID, key)
 		if err != nil {
 			log.Printf("Error checking idempotency key: %v", err)
-			jsonutil.WriteErrorJSON(w, "Internal Server Error")
+			apierror.Internal("Internal Server Error").Write(w)
 			return
 		}
 		if record != nil {
@@ -125,33 +124,28 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 	defer timer.ObserveDuration()
 
 	if r.Method != http.MethodPost {
-		jsonutil.WriteErrorJSON(w, "Method not allowed")
+		apierror.BadRequest("Method not allowed").Write(w)
 		return
 	}
 
 	userID, err := extractUserIDFromToken(r)
 	if err != nil {
-		jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+		apierror.Unauthorized("Invalid token").Write(w)
 		return
 	}
 	if userID == "" {
-		// optionally enforce auth
-		// jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
-		// return
-		// For verification purposes without complex auth setup in curl, we might allow anonymous or mock it?
-		// No, let's enforce it to be correct.
-		jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Authentication required"})
+		apierror.Unauthorized("Authentication required").Write(w)
 		return
 	}
 
 	var req CreateIntentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		apierror.BadRequest("Invalid request body").Write(w)
 		return
 	}
 
 	if req.Amount <= 0 || req.Currency == "" {
-		jsonutil.WriteErrorJSON(w, "Amount and Currency are required")
+		apierror.BadRequest("Amount and Currency are required").Write(w)
 		return
 	}
 
@@ -169,7 +163,7 @@ func (h *PaymentHandler) CreatePaymentIntent(w http.ResponseWriter, r *http.Requ
 
 	if err := h.service.CreatePaymentIntent(r.Context(), intent); err != nil {
 		infrastructure.PaymentRequests.WithLabelValues("create", "error").Inc()
-		jsonutil.WriteErrorJSON(w, "Failed to create payment intent")
+		apierror.Internal("Failed to create payment intent").Write(w)
 		return
 	}
 
@@ -197,43 +191,37 @@ func (h *PaymentHandler) ConfirmPaymentIntent(w http.ResponseWriter, r *http.Req
 	defer timer.ObserveDuration()
 
 	if r.Method != http.MethodPost {
-		jsonutil.WriteErrorJSON(w, "Method not allowed")
+		apierror.BadRequest("Method not allowed").Write(w)
 		return
 	}
 
 	// Extract ID from URL path (e.g. /payment_intents/{id}/confirm)
-	// Simple parsing since we use ServeMux
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 3 {
-		jsonutil.WriteErrorJSON(w, "Invalid path")
+		apierror.BadRequest("Invalid path").Write(w)
 		return
 	}
-	// Expected path: /payment_intents/{id}/confirm
-	// parts: ["", "payment_intents", "{id}", "confirm"]
-	// Wait, in main.go we will likely mount this handler at a specific path.
-	// Let's assume we handle the ID extraction there or here properly.
-	// If mounted at /payment_intents/, then parts are correct.
 	id := pathParts[2]
 
 	var req ConfirmIntentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		apierror.BadRequest("Invalid request body").Write(w)
 		return
 	}
 
 	if req.PaymentMethodID == "" {
-		jsonutil.WriteErrorJSON(w, "payment_method_id is required")
+		apierror.BadRequest("payment_method_id is required").Write(w)
 		return
 	}
 
 	intent, err := h.service.GetPaymentIntent(r.Context(), id)
 	if err != nil || intent == nil {
-		jsonutil.WriteErrorJSON(w, "Payment intent not found")
+		apierror.NotFound("Payment intent not found").Write(w)
 		return
 	}
 
 	if intent.Status == "succeeded" {
-		jsonutil.WriteErrorJSON(w, "Payment already succeeded")
+		apierror.Conflict("Payment already succeeded").Write(w)
 		return
 	}
 
@@ -250,7 +238,7 @@ func (h *PaymentHandler) ConfirmPaymentIntent(w http.ResponseWriter, r *http.Req
 	if err := h.service.UpdateStatus(r.Context(), id, "succeeded"); err != nil {
 		infrastructure.PaymentRequests.WithLabelValues("confirm", "error").Inc()
 		// Critical: In real world, we need to handle state consistency here
-		jsonutil.WriteErrorJSON(w, "Failed to update payment status")
+		apierror.Internal("Failed to update payment status").Write(w)
 		return
 	}
 	infrastructure.PaymentRequests.WithLabelValues("confirm", "success").Inc()
@@ -366,32 +354,32 @@ func (h *PaymentHandler) RefundPaymentIntent(w http.ResponseWriter, r *http.Requ
 	defer timer.ObserveDuration()
 
 	if r.Method != http.MethodPost {
-		jsonutil.WriteErrorJSON(w, "Method not allowed")
+		apierror.BadRequest("Method not allowed").Write(w)
 		return
 	}
 
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 3 {
-		jsonutil.WriteErrorJSON(w, "Invalid path")
+		apierror.BadRequest("Invalid path").Write(w)
 		return
 	}
 	id := pathParts[2]
 
 	intent, err := h.service.GetPaymentIntent(r.Context(), id)
 	if err != nil || intent == nil {
-		jsonutil.WriteErrorJSON(w, "Payment intent not found")
+		apierror.NotFound("Payment intent not found").Write(w)
 		return
 	}
 
 	if intent.Status != "succeeded" {
-		jsonutil.WriteErrorJSON(w, "Only succeeded payments can be refunded")
+		apierror.BadRequest("Only succeeded payments can be refunded").Write(w)
 		return
 	}
 
 	// Update Status to refunded
 	if err := h.service.UpdateStatus(r.Context(), id, "refunded"); err != nil {
 		infrastructure.PaymentRequests.WithLabelValues("refund", "error").Inc()
-		jsonutil.WriteErrorJSON(w, "Failed to update refund status")
+		apierror.Internal("Failed to update refund status").Write(w)
 		return
 	}
 
@@ -440,7 +428,7 @@ func (h *PaymentHandler) ListPaymentIntents(w http.ResponseWriter, r *http.Reque
 
 	intents, err := h.service.ListPaymentIntents(r.Context(), zoneID, limit)
 	if err != nil {
-		jsonutil.WriteErrorJSON(w, "Failed to list payment intents")
+		apierror.Internal("Failed to list payment intents").Write(w)
 		return
 	}
 

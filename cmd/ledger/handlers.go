@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/sapliy/fintech-ecosystem/internal/ledger/domain"
+	"github.com/sapliy/fintech-ecosystem/pkg/apierror"
 	"github.com/sapliy/fintech-ecosystem/pkg/jsonutil"
 )
 
@@ -22,12 +23,12 @@ func (h *LedgerHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		UserID   *string            `json:"user_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		apierror.BadRequest("Invalid request body").Write(w)
 		return
 	}
 
 	if req.Name == "" || req.Type == "" {
-		jsonutil.WriteErrorJSON(w, "Name and Type are required")
+		apierror.BadRequest("Name and Type are required").Write(w)
 		return
 	}
 
@@ -37,7 +38,7 @@ func (h *LedgerHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 
 	acc, err := h.service.CreateAccount(r.Context(), req.Name, req.Type, req.Currency, req.UserID, r.Header.Get("X-Zone-ID"), r.Header.Get("X-Zone-Mode"))
 	if err != nil {
-		jsonutil.WriteErrorJSON(w, "Failed to create account")
+		apierror.Internal("Failed to create account").Write(w)
 		return
 	}
 
@@ -47,18 +48,18 @@ func (h *LedgerHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 func (h *LedgerHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 3 {
-		jsonutil.WriteErrorJSON(w, "Invalid URL")
+		apierror.BadRequest("Invalid URL").Write(w)
 		return
 	}
 	id := parts[len(parts)-1]
 
 	acc, err := h.service.GetAccount(r.Context(), id)
 	if err != nil {
-		jsonutil.WriteErrorJSON(w, "Error retrieving account")
+		apierror.Internal("Error retrieving account").Write(w)
 		return
 	}
 	if acc == nil {
-		jsonutil.WriteErrorJSON(w, "Account not found")
+		apierror.NotFound("Account not found").Write(w)
 		return
 	}
 
@@ -68,21 +69,21 @@ func (h *LedgerHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 func (h *LedgerHandler) RecordTransaction(w http.ResponseWriter, r *http.Request) {
 	var req domain.TransactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		apierror.BadRequest("Invalid request body").Write(w)
 		return
 	}
 
 	// Basic Validation
 	if req.ReferenceID == "" || len(req.Entries) < 2 {
-		jsonutil.WriteErrorJSON(w, "Invalid transaction: ReferenceID required, and at least 2 entries needed")
+		apierror.BadRequest("Invalid transaction: ReferenceID required, and at least 2 entries needed").Write(w)
 		return
 	}
 
 	if err := h.service.RecordTransaction(r.Context(), req, r.Header.Get("X-Zone-ID"), r.Header.Get("X-Zone-Mode")); err != nil {
 		if strings.Contains(err.Error(), "transaction is not balanced") {
-			jsonutil.WriteErrorJSON(w, err.Error()) // 400 Bad Request
+			apierror.BadRequest(err.Error()).Write(w)
 		} else {
-			jsonutil.WriteErrorJSON(w, "Failed to record transaction: "+err.Error())
+			apierror.Internal("Failed to record transaction: " + err.Error()).Write(w)
 		}
 		return
 	}
@@ -92,7 +93,7 @@ func (h *LedgerHandler) RecordTransaction(w http.ResponseWriter, r *http.Request
 func (h *LedgerHandler) BulkRecordTransactions(w http.ResponseWriter, r *http.Request) {
 	var reqs []domain.TransactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&reqs); err != nil {
-		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		apierror.BadRequest("Invalid request body").Write(w)
 		return
 	}
 
@@ -101,7 +102,7 @@ func (h *LedgerHandler) BulkRecordTransactions(w http.ResponseWriter, r *http.Re
 
 	errs, err := h.service.BulkRecordTransactions(r.Context(), reqs, zoneID, mode)
 	if err != nil {
-		jsonutil.WriteErrorJSON(w, "Internal server error: "+err.Error())
+		apierror.Internal("Internal server error: " + err.Error()).Write(w)
 		return
 	}
 
@@ -127,7 +128,7 @@ func (h *LedgerHandler) ListTransactions(w http.ResponseWriter, r *http.Request)
 
 	txs, err := h.service.ListTransactions(r.Context(), zoneID, limit)
 	if err != nil {
-		jsonutil.WriteErrorJSON(w, "Failed to list transactions")
+		apierror.Internal("Failed to list transactions").Write(w)
 		return
 	}
 
@@ -137,18 +138,18 @@ func (h *LedgerHandler) ListTransactions(w http.ResponseWriter, r *http.Request)
 func (h *LedgerHandler) GetTransaction(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 3 {
-		jsonutil.WriteErrorJSON(w, "Invalid URL")
+		apierror.BadRequest("Invalid URL").Write(w)
 		return
 	}
 	id := parts[len(parts)-1]
 
 	tx, err := h.service.GetTransaction(r.Context(), id)
 	if err != nil {
-		jsonutil.WriteErrorJSON(w, "Error retrieving transaction")
+		apierror.Internal("Error retrieving transaction").Write(w)
 		return
 	}
 	if tx == nil {
-		jsonutil.WriteErrorJSON(w, "Transaction not found")
+		apierror.NotFound("Transaction not found").Write(w)
 		return
 	}
 

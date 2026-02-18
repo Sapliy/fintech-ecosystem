@@ -40,8 +40,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 # Copy the binary from builder
 COPY --from=builder /app/main .
 
-# Copy any necessary files
-COPY --from=builder /app/internal ./internal
+# Copy migration files (needed at runtime for DB migrations)
 COPY --from=builder /app/migrations ./migrations
 
 # Expose the service port

@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sapliy/fintech-ecosystem/pkg/apierror"
 	"github.com/sapliy/fintech-ecosystem/pkg/apikey"
 	"github.com/sapliy/fintech-ecosystem/pkg/jsonutil"
 	"github.com/sapliy/fintech-ecosystem/pkg/observability"
@@ -121,7 +122,7 @@ func (h *GatewayHandler) proxyRequest(target string, w http.ResponseWriter, r *h
 	targetURL, err := url.Parse(target)
 	if err != nil {
 		h.logger.Error("Error parsing target URL", "target", target, "error", err)
-		jsonutil.WriteErrorJSON(w, "Internal Server Error; Invalid Target")
+		apierror.Internal("Internal Server Error").Write(w)
 		return
 	}
 
@@ -174,7 +175,7 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if apiKey == "" || (!strings.HasPrefix(apiKey, "sk_") && !strings.HasPrefix(apiKey, "pk_")) {
-		jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Missing or invalid API Key"})
+		apierror.Unauthorized("Missing or invalid API Key").Write(w)
 		return
 	}
 
@@ -184,23 +185,26 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Validate with Auth Service
 	userID, env, keyScopes, orgID, role, quota, zoneID, mode, keyType, valid := h.validateKeyWithAuthService(r.Context(), keyHash)
 	if !valid {
-		jsonutil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "Invalid or revoked API Key"})
+		apierror.Unauthorized("Invalid or revoked API Key").Write(w)
 		return
 	}
 
 	// Key Type Enforcement (Example: pk_ keys can only emit events)
 	if keyType == "publishable" && !strings.HasPrefix(path, "/v1/events/emit") {
-		jsonutil.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "Publishable keys only allowed for event emission"})
+		apierror.Forbidden("Publishable keys only allowed for event emission").Write(w)
 		return
 	}
 
-	// Scope Enforcement
-	requiredScope := scopes.GetRequiredScope(path, r.Method)
+	// Scope Enforcement — strip /v1 prefix to match EndpointScopes definitions.
+	scopePath := path
+	if after, ok := strings.CutPrefix(scopePath, "/v1"); ok {
+		scopePath = after
+	}
+	requiredScope := scopes.GetRequiredScope(scopePath, r.Method)
 	if requiredScope != "" && !scopes.HasScope(keyScopes, requiredScope) {
-		jsonutil.WriteJSON(w, http.StatusForbidden, map[string]string{
-			"error":          "Insufficient scope",
+		apierror.ForbiddenWithDetails("Insufficient scope", map[string]string{
 			"required_scope": requiredScope,
-		})
+		}).Write(w)
 		return
 	}
 
@@ -208,13 +212,13 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	allowed, err := h.checkRateLimit(r.Context(), keyHash, quota)
 	if err != nil {
 		h.logger.Error("Redis error in rate limiter", "error", err)
-		// Fail open or closed? Closed for security.
-		jsonutil.WriteErrorJSON(w, "Internal Server Error")
+		// Fail closed for security.
+		apierror.Internal("Internal Server Error").Write(w)
 		return
 	}
 	if !allowed {
 		w.Header().Set("Retry-After", "60")
-		jsonutil.WriteJSON(w, http.StatusTooManyRequests, map[string]string{"error": "Rate limit exceeded"})
+		apierror.RateLimited("60").Write(w)
 		return
 	}
 
@@ -275,7 +279,7 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.handleWebSocket(w, r)
 			return
 		}
-		jsonutil.WriteErrorJSON(w, "WebSocket upgrade required")
+		apierror.BadRequest("WebSocket upgrade required").Write(w)
 
 	default:
 		// Fallback for root path if it's a WebSocket upgrade
@@ -284,7 +288,7 @@ func (h *GatewayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.logger.Warn("Route not found", "path", path)
-		jsonutil.WriteErrorJSON(w, "Not Found")
+		apierror.NotFound("Not Found").Write(w)
 	}
 }
 
@@ -296,7 +300,7 @@ func (h *GatewayHandler) handleWebSocket(w http.ResponseWriter, r *http.Request)
 		// However, ServeHTTP validates API key before calling this for "/events" and "/ws".
 		// But let's be safe.
 		h.logger.Warn("WebSocket attempt without Org ID context")
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		apierror.Unauthorized("Organization context required for WebSocket").Write(w)
 		return
 	}
 
@@ -373,18 +377,18 @@ func (h *GatewayHandler) handleEventEmit(w http.ResponseWriter, r *http.Request)
 	zoneID := r.Header.Get("X-Zone-ID")
 	orgID := r.Header.Get("X-Org-ID")
 	if zoneID == "" {
-		jsonutil.WriteErrorJSON(w, "Zone context missing")
+		apierror.BadRequest("Zone context missing").Write(w)
 		return
 	}
 
 	var req EventEmitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		jsonutil.WriteErrorJSON(w, "Invalid request body")
+		apierror.BadRequest("Invalid request body").Write(w)
 		return
 	}
 
 	if req.Type == "" {
-		jsonutil.WriteErrorJSON(w, "Event type required")
+		apierror.BadRequest("Event type required").Write(w)
 		return
 	}
 
@@ -452,7 +456,7 @@ func (h *GatewayHandler) handleEventEmit(w http.ResponseWriter, r *http.Request)
 
 	if err != nil {
 		h.logger.Error("Failed to publish to Redis Stream", "error", err)
-		jsonutil.WriteErrorJSON(w, "Failed to ingest event")
+		apierror.Internal("Failed to ingest event").Write(w)
 		return
 	}
 
