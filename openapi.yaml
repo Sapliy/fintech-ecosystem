@@ -198,7 +198,7 @@ components:
         email_verified:
           type: boolean
 
-    Subscription:
+    BillingSubscription:
       type: object
       required: [id, status, plan_id]
       properties:
@@ -213,7 +213,7 @@ components:
           type: string
           format: date-time
 
-    Flow:
+    AutomationFlow:
       type: object
       required: [id, name, zone_id]
       properties:
@@ -232,15 +232,15 @@ components:
         version:
           type: integer
         trigger:
-          $ref: "#/components/schemas/Trigger"
+          $ref: "#/components/schemas/AutomationFlowTrigger"
         nodes:
           type: array
           items:
-            $ref: "#/components/schemas/Node"
+            $ref: "#/components/schemas/AutomationFlowNode"
         edges:
           type: array
           items:
-            $ref: "#/components/schemas/Edge"
+            $ref: "#/components/schemas/AutomationFlowEdge"
         created_at:
           type: string
           format: date-time
@@ -248,7 +248,7 @@ components:
           type: string
           format: date-time
 
-    Trigger:
+    AutomationFlowTrigger:
       type: object
       required: [type]
       properties:
@@ -259,7 +259,7 @@ components:
         config:
           type: object
 
-    Node:
+    AutomationFlowNode:
       type: object
       required: [id, type]
       properties:
@@ -272,7 +272,7 @@ components:
         data:
           type: object
 
-    Edge:
+    AutomationFlowEdge:
       type: object
       required: [id, source, target]
       properties:
@@ -285,7 +285,7 @@ components:
         source_handle:
           type: string
 
-    FlowExecution:
+    AutomationFlowExecution:
       type: object
       required: [id, flow_id, status]
       properties:
@@ -309,7 +309,7 @@ components:
         steps:
           type: array
           items:
-            $ref: "#/components/schemas/ExecutionStep"
+            $ref: "#/components/schemas/AutomationFlowExecutionStep"
         started_at:
           type: string
           format: date-time
@@ -317,7 +317,7 @@ components:
           type: string
           format: date-time
 
-    ExecutionStep:
+    AutomationFlowExecutionStep:
       type: object
       required: [node_id, status]
       properties:
@@ -336,6 +336,7 @@ paths:
   /v1/auth/register:
     post:
       summary: Register a new user
+      operationId: registerUser
       tags: [Auth]
       requestBody:
         required: true
@@ -365,6 +366,7 @@ paths:
   /v1/auth/login:
     post:
       summary: Login
+      operationId: loginUser
       tags: [Auth]
       requestBody:
         required: true
@@ -428,6 +430,28 @@ paths:
                 $ref: "#/components/schemas/PaymentIntent"
         "400":
           $ref: "#/components/responses/BadRequest"
+
+  /v1/payments/{id}:
+    get:
+      summary: Get Payment Intent details
+      operationId: getPaymentIntent
+      tags: [Payments]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/ZoneIdHeader"
+        - $ref: "#/components/parameters/ZoneModeHeader"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntent"
 
   /v1/payments/intents/{id}/confirm:
     post:
@@ -549,8 +573,12 @@ paths:
   /v1/wallets/topup:
     post:
       summary: Top up a wallet
+      operationId: topupWallet
       tags: [Wallets]
       security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ZoneIdHeader"
+        - $ref: "#/components/parameters/ZoneModeHeader"
       requestBody:
         required: true
         content:
@@ -582,8 +610,12 @@ paths:
   /v1/wallets/transfer:
     post:
       summary: Transfer between wallets
+      operationId: transferWallet
       tags: [Wallets]
       security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ZoneIdHeader"
+        - $ref: "#/components/parameters/ZoneModeHeader"
       requestBody:
         required: true
         content:
@@ -617,6 +649,7 @@ paths:
   /v1/billing/subscriptions:
     post:
       summary: Create Subscription
+      operationId: createSubscription
       tags: [Billing]
       security: [{ ApiKeyAuth: [] }]
       requestBody:
@@ -637,7 +670,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Subscription"
+                $ref: "#/components/schemas/BillingSubscription"
 
   /v1/events/emit:
     post:
@@ -732,7 +765,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Subscription"
+                $ref: "#/components/schemas/BillingSubscription"
     delete:
       summary: Cancel Subscription
       operationId: cancelSubscription
@@ -759,14 +792,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Flow"
+              $ref: "#/components/schemas/AutomationFlow"
       responses:
         "201":
           description: Created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Flow"
+                $ref: "#/components/schemas/AutomationFlow"
 
   /v1/flows/{flowId}:
     parameters:
@@ -786,7 +819,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Flow"
+                $ref: "#/components/schemas/AutomationFlow"
     put:
       summary: Update a Flow
       operationId: updateFlow
@@ -797,14 +830,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Flow"
+              $ref: "#/components/schemas/AutomationFlow"
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Flow"
+                $ref: "#/components/schemas/AutomationFlow"
     delete:
       summary: Delete a Flow
       operationId: deleteFlow
@@ -837,7 +870,7 @@ paths:
                   flows:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Flow"
+                      $ref: "#/components/schemas/AutomationFlow"
                   count:
                     type: integer
 
@@ -859,7 +892,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FlowExecution"
+                $ref: "#/components/schemas/AutomationFlowExecution"
 
   /v1/executions/{executionId}/resume:
     post:

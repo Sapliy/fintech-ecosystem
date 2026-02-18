@@ -17,11 +17,13 @@ echo "Generating SDKs..."
 
 # --- Node.js ---
 echo "Generating Node.js SDK..."
+rm -rf ../fintech-sdk-node/src/generated
 mkdir -p ../fintech-sdk-node/src/generated
 openapi-generator-cli generate -i "$OPENAPI_FILE" -g typescript-axios -o ../fintech-sdk-node/src/generated --additional-properties=npmName=@sapliyio/fintech-node-generated,supportsES6=true
 
 # --- Go ---
 echo "Generating Go SDK..."
+rm -rf ../fintech-sdk-go/generated
 mkdir -p ../fintech-sdk-go/generated
 openapi-generator-cli generate -i "$OPENAPI_FILE" -g go -o ../fintech-sdk-go/generated \
   --additional-properties=packageName=generated,enumClassPrefix=true,withGoMod=false \
@@ -32,6 +34,7 @@ sed -i '' 's/github.com\/GIT_USER_ID\/GIT_REPO_ID/github.com\/sapliy\/fintech-sd
 
 # --- Python ---
 echo "Generating Python SDK..."
+rm -rf ../fintech-sdk-python/sapliyio_fintech/generated
 mkdir -p ../fintech-sdk-python/sapliyio_fintech/generated
 openapi-generator-cli generate -i "$OPENAPI_FILE" -g python -o ../fintech-sdk-python/sapliyio_fintech/generated \
   --additional-properties=packageName=sapliyio_fintech.generated
