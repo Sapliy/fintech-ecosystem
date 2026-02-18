@@ -6,10 +6,10 @@ set -e
 # Ensure we are in the root directory
 cd "$(dirname "$0")/.."
 
-SWAGGER_FILE="generated/openapi/fintech.swagger.json"
+OPENAPI_FILE="openapi.yaml"
 
-if [ ! -f "$SWAGGER_FILE" ]; then
-    echo "Swagger file not found. Run scripts/generate_openapi.sh first."
+if [ ! -f "$OPENAPI_FILE" ]; then
+    echo "OpenAPI spec file not found: $OPENAPI_FILE"
     exit 1
 fi
 
@@ -18,12 +18,12 @@ echo "Generating SDKs..."
 # --- Node.js ---
 echo "Generating Node.js SDK..."
 mkdir -p ../fintech-sdk-node/src/generated
-openapi-generator-cli generate -i "$SWAGGER_FILE" -g typescript-axios -o ../fintech-sdk-node/src/generated --additional-properties=npmName=@sapliyio/fintech-node-generated,supportsES6=true
+openapi-generator-cli generate -i "$OPENAPI_FILE" -g typescript-axios -o ../fintech-sdk-node/src/generated --additional-properties=npmName=@sapliyio/fintech-node-generated,supportsES6=true
 
 # --- Go ---
 echo "Generating Go SDK..."
 mkdir -p ../fintech-sdk-go/generated
-openapi-generator-cli generate -i "$SWAGGER_FILE" -g go -o ../fintech-sdk-go/generated \
+openapi-generator-cli generate -i "$OPENAPI_FILE" -g go -o ../fintech-sdk-go/generated \
   --additional-properties=packageName=generated,enumClassPrefix=true,withGoMod=false \
   --git-host github.com --git-user-id sapliy --git-repo-id fintech-sdk-go
 
@@ -33,7 +33,7 @@ sed -i '' 's/github.com\/GIT_USER_ID\/GIT_REPO_ID/github.com\/sapliy\/fintech-sd
 # --- Python ---
 echo "Generating Python SDK..."
 mkdir -p ../fintech-sdk-python/sapliyio_fintech/generated
-openapi-generator-cli generate -i "$SWAGGER_FILE" -g python -o ../fintech-sdk-python/sapliyio_fintech/generated \
+openapi-generator-cli generate -i "$OPENAPI_FILE" -g python -o ../fintech-sdk-python/sapliyio_fintech/generated \
   --additional-properties=packageName=sapliyio_fintech.generated
 
 # Clean up redundant project files from generated sub-dirs (conflicts with parent wrappers)

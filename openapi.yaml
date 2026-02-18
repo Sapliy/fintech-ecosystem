@@ -1,0 +1,738 @@
+openapi: 3.1.0
+info:
+  title: Sapliy Fintech API
+  description: Official API for the Sapliy Fintech Ecosystem. Build robust financial applications with our type-safe, high-integrity platform.
+  version: 1.0.0
+  contact:
+    name: Sapliy Support
+    url: https://sapliy.io/support
+    email: support@sapliy.io
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.sapliy.io
+    description: Production API
+  - url: http://localhost:8080
+    description: Local Development (Gateway)
+
+components:
+  parameters:
+    ZoneIdHeader:
+      name: X-Zone-ID
+      in: header
+      required: true
+      schema:
+        type: string
+      description: The ID of the zone for this request.
+    ZoneModeHeader:
+      name: X-Zone-Mode
+      in: header
+      required: false
+      schema:
+        type: string
+        enum: [live, test]
+      description: The mode of the zone (live or test).
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      description: Use your secret or publishable API key as a Bearer token.
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth-token
+      description: Session token used for dashboard and frontend requests.
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: Authentication failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    InternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: RATE_LIMIT_EXCEEDED
+            message:
+              type: string
+              example: Rate limit exceeded. Retry after 60 seconds.
+            request_id:
+              type: string
+            trace_id:
+              type: string
+
+    PaymentIntent:
+      type: object
+      required: [id, amount, currency, status]
+      properties:
+        id:
+          type: string
+          example: pi_12345
+        amount:
+          type: integer
+          format: int64
+          example: 2000
+        currency:
+          type: string
+          example: USD
+        status:
+          type: string
+          enum:
+            [
+              requires_payment_method,
+              requires_confirmation,
+              requires_action,
+              processing,
+              requires_capture,
+              canceled,
+              succeeded,
+            ]
+        client_secret:
+          type: string
+          description: Used for client-side confirmation.
+        description:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Wallet:
+      type: object
+      required: [id, user_id, balance, currency]
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        balance:
+          type: integer
+          format: int64
+        currency:
+          type: string
+
+    LedgerAccount:
+      type: object
+      required: [id, name, type, currency]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        currency:
+          type: string
+        balance:
+          type: integer
+          format: int64
+
+    LedgerTransaction:
+      type: object
+      required: [id, reference_id, status]
+      properties:
+        id:
+          type: string
+        reference_id:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LedgerEntry"
+
+    LedgerEntry:
+      type: object
+      required: [account_id, amount]
+      properties:
+        account_id:
+          type: string
+        amount:
+          type: integer
+          format: int64
+
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        email_verified:
+          type: boolean
+
+    Subscription:
+      type: object
+      required: [id, status, plan_id]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [active, canceled, past_due, incomplete]
+        plan_id:
+          type: string
+        current_period_end:
+          type: string
+          format: date-time
+
+paths:
+  /v1/auth/register:
+    post:
+      summary: Register a new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+
+  /v1/auth/login:
+    post:
+      summary: Login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+
+  /v1/payments:
+    post:
+      summary: Create a Payment Intent
+      operationId: createPaymentIntent
+      tags: [Payments]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ZoneIdHeader"
+        - $ref: "#/components/parameters/ZoneModeHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency]
+              properties:
+                amount:
+                  type: integer
+                  format: int64
+                currency:
+                  type: string
+                description:
+                  type: string
+                metadata:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /v1/payments/intents/{id}/confirm:
+    post:
+      summary: Confirm a Payment Intent
+      operationId: confirmPaymentIntent
+      tags: [Payments]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/ZoneIdHeader"
+        - $ref: "#/components/parameters/ZoneModeHeader"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_method_id:
+                  type: string
+      responses:
+        "200":
+          description: Confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntent"
+
+  /v1/ledger/accounts:
+    post:
+      summary: Create Ledger Account
+      tags: [Ledger]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ZoneIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type]
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                currency:
+                  type: string
+                user_id:
+                  type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerAccount"
+
+  /v1/ledger/transactions:
+    post:
+      summary: Record Transaction
+      tags: [Ledger]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ZoneIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reference_id, entries]
+              properties:
+                reference_id:
+                  type: string
+                description:
+                  type: string
+                entries:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/LedgerEntry"
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+
+  /v1/wallets/{user_id}:
+    get:
+      summary: Get Wallet Balance
+      operationId: getWallet
+      tags: [Wallets]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/ZoneIdHeader"
+        - $ref: "#/components/parameters/ZoneModeHeader"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+
+  /v1/wallets/topup:
+    post:
+      summary: Top up a wallet
+      tags: [Wallets]
+      security: [{ ApiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency, reference_id]
+              properties:
+                amount:
+                  type: integer
+                  format: int64
+                currency:
+                  type: string
+                reference_id:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction_id:
+                    type: string
+                  status:
+                    type: string
+
+  /v1/wallets/transfer:
+    post:
+      summary: Transfer between wallets
+      tags: [Wallets]
+      security: [{ ApiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to_user_id, amount, currency, reference_id]
+              properties:
+                to_user_id:
+                  type: string
+                amount:
+                  type: integer
+                  format: int64
+                currency:
+                  type: string
+                reference_id:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction_id:
+                    type: string
+                  status:
+                    type: string
+
+  /v1/billing/subscriptions:
+    post:
+      summary: Create Subscription
+      tags: [Billing]
+      security: [{ ApiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan_id]
+              properties:
+                plan_id:
+                  type: string
+                customer_id:
+                  type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
+  /v1/events/emit:
+    post:
+      summary: Emit an Event
+      operationId: emitEvent
+      tags: [Events]
+      security: [{ ApiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                data:
+                  type: object
+                idempotency_key:
+                  type: string
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event_id:
+                    type: string
+                  status:
+                    type: string
+
+  /v1/ledger/accounts/{id}:
+    get:
+      summary: Get Ledger Account details
+      operationId: getLedgerAccount
+      tags: [Ledger]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/ZoneIdHeader"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerAccount"
+
+  /v1/ledger/transactions/{id}:
+    get:
+      summary: Get Ledger Transaction details
+      operationId: getLedgerTransaction
+      tags: [Ledger]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/ZoneIdHeader"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerTransaction"
+
+  /v1/billing/subscriptions/{id}:
+    get:
+      summary: Get Subscription details
+      operationId: getSubscription
+      tags: [Billing]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+    delete:
+      summary: Cancel Subscription
+      operationId: cancelSubscription
+      tags: [Billing]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Canceled
+
+  /v1/auth/validate:
+    post:
+      summary: Validate an API key
+      operationId: validateKey
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  user_id:
+                    type: string
+                  org_id:
+                    type: string
+                  environment:
+                    type: string
+                  scopes:
+                    type: array
+                    items:
+                      type: string
+
+  /v1/zones:
+    post:
+      summary: Create a Zone
+      operationId: createZone
+      tags: [Zones]
+      security: [{ ApiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [org_id, name, mode]
+              properties:
+                org_id:
+                  type: string
+                name:
+                  type: string
+                mode:
+                  type: string
+                  enum: [live, test]
+                template_name:
+                  type: string
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  org_id:
+                    type: string
+                  name:
+                    type: string
+                  mode:
+                    type: string
+    get:
+      summary: List or Get Zones
+      operationId: listZones
+      tags: [Zones]
+      security: [{ ApiKeyAuth: [] }]
+      parameters:
+        - name: org_id
+          in: query
+          schema:
+            type: string
+        - name: id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    org_id:
+                      type: string
+                    name:
+                      type: string
+                    mode:
+                      type: string
