@@ -2,14 +2,25 @@ package jwtutil
 
 import (
 	"errors"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 // SecretKey is the key used to sign the tokens.
-// In production, this must be loaded from a secure environment variable.
-var SecretKey = []byte("super-secret-key-change-me")
+// It is loaded from the JWT_SECRET environment variable.
+var SecretKey []byte
+
+func init() {
+	SecretKey = []byte(os.Getenv("JWT_SECRET"))
+	if len(SecretKey) == 0 {
+		if os.Getenv("GO_ENV") == "production" {
+			panic("FATAL: JWT_SECRET environment variable must be set in production")
+		}
+		SecretKey = []byte("super-secret-key-change-me-dev")
+	}
+}
 
 // Claims defines the custom claims structure for our JWTs.
 type Claims struct {

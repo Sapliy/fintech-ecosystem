@@ -23,6 +23,7 @@ import (
 	zone "github.com/sapliy/fintech-ecosystem/internal/zone"
 	zoneDomain "github.com/sapliy/fintech-ecosystem/internal/zone/domain"
 	zoneInfra "github.com/sapliy/fintech-ecosystem/internal/zone/infrastructure"
+	"github.com/sapliy/fintech-ecosystem/pkg/authutil"
 	"github.com/sapliy/fintech-ecosystem/pkg/database"
 	"github.com/sapliy/fintech-ecosystem/pkg/jsonutil"
 	"github.com/sapliy/fintech-ecosystem/pkg/monitoring"
@@ -31,6 +32,7 @@ import (
 	ledgerPb "github.com/sapliy/fintech-ecosystem/proto/ledger"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -122,7 +124,13 @@ func main() {
 			if ledgerAddr == "" {
 				ledgerAddr = "localhost:50052"
 			}
-			conn, err := grpc.NewClient(ledgerAddr, grpc.WithInsecure())
+			conn, err := grpc.NewClient(ledgerAddr,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithChainUnaryInterceptor(
+					monitoring.UnaryClientInterceptor("auth"),
+					authutil.UnaryInternalTokenClientInterceptor(),
+				),
+			)
 			if err != nil {
 				return err
 			}
@@ -149,7 +157,12 @@ func main() {
 	zoneService := zone.NewService(zoneRepo, providers, zonePublisher)
 	templateService := zone.NewTemplateService(zoneService)
 
-	handler := api.NewAuthHandler(authService, hmacSecret, rdb)
+	goEnv := os.Getenv("GO_ENV")
+	if goEnv == "" {
+		goEnv = "development"
+	}
+
+	handler := api.NewAuthHandler(authService, hmacSecret, rdb, goEnv)
 	zoneHandler := api.NewZoneHandler(zoneService, templateService)
 
 	// Initialize Tracer
@@ -344,8 +357,12 @@ func main() {
 		logger.Error("Failed to listen for gRPC", "error", err)
 		os.Exit(1)
 	}
+	chain := authutil.ChainUnaryServer(
+		monitoring.UnaryServerInterceptor("auth"),
+		authutil.UnaryInternalTokenServerInterceptor(),
+	)
 	s := grpc.NewServer(
-		grpc.UnaryInterceptor(monitoring.UnaryServerInterceptor("auth")),
+		grpc.UnaryInterceptor(chain),
 	)
 	pb.RegisterAuthServiceServer(s, api.NewAuthGRPCServer(authService))
 

@@ -19,6 +19,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sapliy/fintech-ecosystem/pkg/authutil"
 	"github.com/sapliy/fintech-ecosystem/pkg/messaging"
 	"github.com/sapliy/fintech-ecosystem/pkg/monitoring"
 	"google.golang.org/grpc"
@@ -168,8 +169,12 @@ func main() {
 		logger.Error("failed to listen for gRPC", "error", err)
 		os.Exit(1)
 	}
+	chain := authutil.ChainUnaryServer(
+		monitoring.UnaryServerInterceptor("ledger"),
+		authutil.UnaryInternalTokenServerInterceptor(),
+	)
 	s := grpc.NewServer(
-		grpc.UnaryInterceptor(monitoring.UnaryServerInterceptor("ledger")),
+		grpc.UnaryInterceptor(chain),
 	)
 	pb.RegisterLedgerServiceServer(s, api.NewLedgerGRPCServer(service))
 

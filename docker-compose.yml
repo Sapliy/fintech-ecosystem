@@ -57,12 +57,12 @@ services:
       - redpanda
       - start
       - --smp
-      - '1'
+      - "1"
       - --reserve-memory
       - 0M
       - --overprovisioned
       - --node-id
-      - '0'
+      - "0"
       - --kafka-addr
       - PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
       - --advertise-kafka-addr
@@ -104,6 +104,8 @@ services:
       - REDIS_ADDR=redis:6379
       - KAFKA_BROKERS=redpanda:29092
       - ENABLE_DEBUG_ENDPOINTS=true
+      - JWT_SECRET=${JWT_SECRET:-super-secret-key-change-me-dev}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-your_internal_grpc_token}
       - APP_BASE_URL=http://localhost:3000
     ports:
       - "8081:8081"
@@ -144,6 +146,7 @@ services:
       - MIGRATIONS_PATH=/app/migrations/ledger
       - REDIS_ADDR=redis:6379
       - KAFKA_BROKERS=redpanda:29092
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-your_internal_grpc_token}
     ports:
       - "8083:8083"
       - "50052:50052"
@@ -161,6 +164,7 @@ services:
     container_name: microservices_wallet
     environment:
       - LEDGER_GRPC_ADDR=ledger:50052
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-your_internal_grpc_token}
     ports:
       - "8085:8085"
       - "50053:50053"
@@ -188,6 +192,7 @@ services:
       - EVENTS_SERVICE_URL=http://events:8089
       - FLOW_SERVICE_URL=http://flow-service:8088
       - API_KEY_HMAC_SECRET=${API_KEY_HMAC_SECRET}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-your_internal_grpc_token}
     ports:
       - "8080:8080"
     depends_on:

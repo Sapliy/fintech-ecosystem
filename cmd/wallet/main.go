@@ -10,6 +10,7 @@ import (
 	"github.com/sapliy/fintech-ecosystem/internal/wallet/api"
 	"github.com/sapliy/fintech-ecosystem/internal/wallet/domain"
 	"github.com/sapliy/fintech-ecosystem/internal/wallet/infrastructure"
+	"github.com/sapliy/fintech-ecosystem/pkg/authutil"
 	"github.com/sapliy/fintech-ecosystem/pkg/monitoring"
 	"github.com/sapliy/fintech-ecosystem/pkg/observability"
 	ledgerpb "github.com/sapliy/fintech-ecosystem/proto/ledger"
@@ -27,7 +28,10 @@ func main() {
 	}
 	conn, err := grpc.NewClient(ledgerGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(monitoring.UnaryClientInterceptor("wallet")),
+		grpc.WithChainUnaryInterceptor(
+			monitoring.UnaryClientInterceptor("wallet"),
+			authutil.UnaryInternalTokenClientInterceptor(),
+		),
 	)
 	if err != nil {
 		log.Fatalf("did not connect to ledger gRPC: %v", err)
@@ -82,8 +86,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen for gRPC: %v", err)
 	}
+	chain := authutil.ChainUnaryServer(
+		monitoring.UnaryServerInterceptor("wallet"),
+		authutil.UnaryInternalTokenServerInterceptor(),
+	)
 	s := grpc.NewServer(
-		grpc.UnaryInterceptor(monitoring.UnaryServerInterceptor("wallet")),
+		grpc.UnaryInterceptor(chain),
 	)
 	walletpb.RegisterWalletServiceServer(s, api.NewWalletGRPCServer(walletService))
 

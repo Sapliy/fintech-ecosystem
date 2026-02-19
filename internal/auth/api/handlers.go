@@ -18,16 +18,18 @@ import (
 
 // AuthHandler holds dependencies for authentication endpoints.
 type AuthHandler struct {
-	service    *domain.AuthService
-	hmacSecret string
-	rdb        *redis.Client
+	service     *domain.AuthService
+	hmacSecret  string
+	rdb         *redis.Client
+	environment string
 }
 
-func NewAuthHandler(service *domain.AuthService, hmacSecret string, rdb *redis.Client) *AuthHandler {
+func NewAuthHandler(service *domain.AuthService, hmacSecret string, rdb *redis.Client, environment string) *AuthHandler {
 	return &AuthHandler{
-		service:    service,
-		hmacSecret: hmacSecret,
-		rdb:        rdb,
+		service:     service,
+		hmacSecret:  hmacSecret,
+		rdb:         rdb,
+		environment: environment,
 	}
 }
 
@@ -199,9 +201,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Internal token creation for verification (logged but not failing request)
-	token, _ := h.service.CreateEmailVerificationToken(r.Context(), user.ID)
-	if token != "" && h.rdb != nil {
-		h.rdb.Set(r.Context(), "debug:verify:"+user.Email, token, 1*time.Hour)
+	// ONLY enabled in non-production environments
+	if h.environment != "production" {
+		token, _ := h.service.CreateEmailVerificationToken(r.Context(), user.ID)
+		if token != "" && h.rdb != nil {
+			h.rdb.Set(r.Context(), "debug:verify:"+user.Email, token, 1*time.Hour)
+		}
 	}
 
 	// Auto-login after registration
@@ -785,9 +790,12 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		jsonutil.WriteJSON(w, http.StatusOK, map[string]string{"message": "Check your email."})
 		return
 	}
-	token, _ := h.service.CreatePasswordResetToken(r.Context(), user.ID)
-	if token != "" && h.rdb != nil {
-		h.rdb.Set(r.Context(), "debug:reset:"+user.Email, token, 1*time.Hour)
+	// ONLY enabled in non-production environments
+	if h.environment != "production" {
+		token, _ := h.service.CreatePasswordResetToken(r.Context(), user.ID)
+		if token != "" && h.rdb != nil {
+			h.rdb.Set(r.Context(), "debug:reset:"+user.Email, token, 1*time.Hour)
+		}
 	}
 	jsonutil.WriteJSON(w, http.StatusOK, map[string]string{"message": "Check your email."})
 }

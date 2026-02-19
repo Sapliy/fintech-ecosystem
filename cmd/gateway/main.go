@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sapliy/fintech-ecosystem/pkg/authutil"
 	"github.com/sapliy/fintech-ecosystem/pkg/observability"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -36,7 +37,10 @@ func main() {
 	// Setup Auth Service gRPC Client
 	conn, err := grpc.NewClient(cfg.AuthGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(monitoring.UnaryClientInterceptor("gateway")),
+		grpc.WithChainUnaryInterceptor(
+			monitoring.UnaryClientInterceptor("gateway"),
+			authutil.UnaryInternalTokenClientInterceptor(),
+		),
 	)
 	if err != nil {
 		logger.Error("did not connect to auth gRPC", "error", err)
@@ -48,7 +52,10 @@ func main() {
 	// Setup Wallet Service gRPC Client
 	connWallet, err := grpc.NewClient(cfg.WalletGRPCAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(monitoring.UnaryClientInterceptor("gateway")),
+		grpc.WithChainUnaryInterceptor(
+			monitoring.UnaryClientInterceptor("gateway"),
+			authutil.UnaryInternalTokenClientInterceptor(),
+		),
 	)
 	if err != nil {
 		logger.Error("did not connect to wallet gRPC", "error", err)
