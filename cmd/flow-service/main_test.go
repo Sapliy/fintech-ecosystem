@@ -28,7 +28,9 @@ func TestFlowServer_StartDebugSession(t *testing.T) {
 		Enabled: true,
 		Nodes: []domain.Node{
 			{ID: "trigger", Type: domain.NodeTrigger},
+			{ID: "notification", Type: domain.NodeNotification},
 		},
+		Debug: true,
 	}
 
 	// Use same repo instance for everything
@@ -71,6 +73,11 @@ func TestFlowServer_StartDebugSession(t *testing.T) {
 			if !session.Active {
 				t.Error("Session should be active")
 			}
+
+			if session.Level != domain.DebugLevelInfo {
+				t.Errorf("Expected level info, got %s", session.Level)
+			}
+		
 		} else {
 			t.Errorf("Failed to unmarshal response: %v", err)
 		}

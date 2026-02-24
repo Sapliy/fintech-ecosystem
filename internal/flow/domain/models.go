@@ -11,6 +11,7 @@ type NodeType string
 
 const (
 	NodeTrigger       NodeType = "eventTrigger"
+	NodeNotification  NodeType = "notification"
 	NodeCondition     NodeType = "condition"
 	NodeWebhook       NodeType = "webhook"
 	NodeApproval      NodeType = "approval"
@@ -30,6 +31,7 @@ type Flow struct {
 	Description string    `json:"description"`
 	Enabled     bool      `json:"enabled"`
 	Version     int       `json:"version"` // Current version
+	Debug       bool      `json:"debug"`
 	Trigger     Trigger   `json:"trigger"`
 	Nodes       []Node    `json:"nodes"`
 	Edges       []Edge    `json:"edges"`
